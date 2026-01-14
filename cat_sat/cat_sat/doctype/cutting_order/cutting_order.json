@@ -1,0 +1,199 @@
+{
+    "actions": [],
+    "camel_case": "CuttingOrder",
+    "autoname": "format:CO-{DD}{MM}-{#####}",
+    "creation": "2026-01-11 10:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "cutting_plan",
+        "cutting_specification",
+        "steel_profile",
+        "status",
+        "column_break_1",
+        "stock_length",
+        "trim_cut",
+        "blade_width",
+        "section_break_mctd",
+        "enable_bundling",
+        "bundle_factors",
+        "manual_cut_limit",
+        "max_over_production",
+        "section_break_items",
+        "items",
+        "section_break_results",
+        "optimization_result",
+        "result_html"
+    ],
+    "fields": [
+        {
+            "fieldname": "cutting_plan",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Kế hoạch cắt",
+            "options": "Cutting Plan",
+            "read_only": 1
+        },
+        {
+            "fieldname": "cutting_specification",
+            "fieldtype": "Link",
+            "label": "Định mức cắt",
+            "options": "Cutting Specification",
+            "description": "Chọn định mức để tính đồng bộ hàn mảnh"
+        },
+        {
+            "fieldname": "steel_profile",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Loại sắt",
+            "options": "Steel Profile",
+            "reqd": 1
+        },
+        {
+            "default": "Draft",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Trạng thái",
+            "options": "Draft\nOptimized\nPlanned\nCompleted"
+        },
+        {
+            "fieldname": "completion_percent",
+            "fieldtype": "Percent",
+            "label": "% Hoàn thành",
+            "read_only": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "total_duration",
+            "fieldtype": "Duration",
+            "label": "Tổng thời gian",
+            "read_only": 1,
+            "hide_seconds": 1
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "stock_item",
+            "fieldtype": "Link",
+            "label": "Cây sắt (Vật tư)",
+            "options": "Item",
+            "in_list_view": 1
+        },
+        {
+            "default": "6000",
+            "fieldname": "stock_length",
+            "fieldtype": "Int",
+            "label": "Chiều dài cây sắt (mm)",
+            "reqd": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "trim_cut",
+            "fieldtype": "Int",
+            "label": "Tề đầu (mm)",
+            "reqd": 1
+        },
+        {
+            "default": "1",
+            "fieldname": "blade_width",
+            "fieldtype": "Float",
+            "label": "Mạch cắt (mm)",
+            "reqd": 1,
+            "description": "Laser: 1mm, MCTĐ: 2.5-3mm"
+        },
+        {
+            "fieldname": "section_break_mctd",
+            "fieldtype": "Section Break",
+            "label": "Cài đặt MCTĐ (Máy Cắt Theo Đợt)",
+            "collapsible": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "enable_bundling",
+            "fieldtype": "Check",
+            "label": "Bật chế độ cắt theo bó"
+        },
+        {
+            "default": "14 16 18 20",
+            "fieldname": "bundle_factors",
+            "fieldtype": "Data",
+            "label": "Hệ số bó (cách nhau bằng dấu cách)",
+            "description": "Ví dụ: 14 16 18 20",
+            "depends_on": "eval:doc.enable_bundling"
+        },
+        {
+            "default": "10",
+            "fieldname": "manual_cut_limit",
+            "fieldtype": "Int",
+            "label": "Giới hạn cắt lẻ (cây)",
+            "description": "Số cây tối đa được cắt thủ công (hệ số = 1)",
+            "depends_on": "eval:doc.enable_bundling"
+        },
+        {
+            "default": "5",
+            "fieldname": "max_over_production",
+            "fieldtype": "Int",
+            "label": "Dư cho phép (đoạn)",
+            "description": "Số đoạn tối đa được cắt dư so với nhu cầu",
+            "depends_on": "eval:doc.enable_bundling"
+        },
+        {
+            "fieldname": "section_break_items",
+            "fieldtype": "Section Break",
+            "label": "Danh sách cắt"
+        },
+        {
+            "fieldname": "items",
+            "fieldtype": "Table",
+            "label": "Chi tiết",
+            "options": "Cutting Order Input",
+            "reqd": 1
+        },
+        {
+            "fieldname": "section_break_results",
+            "fieldtype": "Section Break",
+            "label": "Kết quả tối ưu"
+        },
+        {
+            "fieldname": "optimization_result",
+            "fieldtype": "Table",
+            "label": "Pattern",
+            "options": "Cutting Pattern",
+            "read_only": 1
+        },
+        {
+            "fieldname": "result_html",
+            "fieldtype": "HTML",
+            "label": "Kết quả chi tiết"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "is_submittable": 1,
+    "links": [],
+    "modified": "2026-01-11 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Order",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

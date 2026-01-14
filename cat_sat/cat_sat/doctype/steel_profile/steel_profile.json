@@ -1,0 +1,102 @@
+{
+    "doctype": "DocType",
+    "name": "Steel Profile",
+    "module": "Cat Sat",
+    "autoname": "field:profile_code",
+    "title_field": "profile_code",
+    "allow_rename": 1,
+    "field_order": [
+        "profile_code",
+        "profile_name",
+        "shape",
+        "dimension",
+        "bundle_factors",
+        "section_break_items",
+        "items"
+    ],
+    "fields": [
+        {
+            "fieldname": "profile_code",
+            "fieldtype": "Data",
+            "label": "Mã profile",
+            "reqd": 1,
+            "unique": 1,
+            "in_list_view": 1,
+            "description": "VD: V10, H10-20"
+        },
+        {
+            "fieldname": "profile_name",
+            "fieldtype": "Data",
+            "label": "Tên profile",
+            "description": "VD: Thép V 10mm"
+        },
+        {
+            "fieldname": "shape",
+            "fieldtype": "Select",
+            "label": "Hình dạng",
+            "options": "V\nH\nFI",
+            "reqd": 1
+        },
+        {
+            "fieldname": "dimension",
+            "fieldtype": "Data",
+            "label": "Kích thước",
+            "reqd": 1,
+            "description": "VD: 10 hoặc 10x20"
+        },
+        {
+            "default": "14 16 18 20",
+            "fieldname": "bundle_factors",
+            "fieldtype": "Data",
+            "label": "Hệ số bó (MCTĐ)",
+            "description": "Các hệ số bó cho máy cắt, cách nhau bằng dấu cách. VD: 14 16 18 20"
+        },
+        {
+            "fieldname": "section_break_items",
+            "fieldtype": "Section Break",
+            "label": "Cây sắt dùng được"
+        },
+        {
+            "fieldname": "items",
+            "fieldtype": "Table",
+            "label": "Danh sách cây sắt",
+            "options": "Steel Profile Item"
+        }
+    ],
+    "permissions": [
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-01-09 08:50:14.432808",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Steel Profile",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

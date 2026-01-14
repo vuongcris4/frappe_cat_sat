@@ -1,0 +1,105 @@
+{
+    "actions": [],
+    "creation": "2026-01-11 10:00:00",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "pattern",
+        "used_length",
+        "waste",
+        "qty",
+        "action_btn",
+        "status",
+        "cut_qty",
+        "last_start_time",
+        "total_duration"
+    ],
+    "fields": [
+        {
+            "fieldname": "action_btn",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Thao t\u00e1c",
+            "read_only": 1
+        },
+        {
+            "allow_on_submit": 1,
+            "default": "Pending",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Tr\u1ea1ng th\u00e1i",
+            "options": "Pending\nIn Progress\nCompleted",
+            "read_only": 1
+        },
+        {
+            "fieldname": "pattern",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "M\u1eabu c\u1eaft (Pattern)",
+            "read_only": 1,
+            "reqd": 1
+        },
+        {
+            "fieldname": "used_length",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "S\u1eed d\u1ee5ng (mm)",
+            "read_only": 1
+        },
+        {
+            "fieldname": "waste",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Hao h\u1ee5t (mm)",
+            "read_only": 1
+        },
+        {
+            "fieldname": "qty",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "SL Y\u00eau c\u1ea7u",
+            "read_only": 1,
+            "reqd": 1
+        },
+        {
+            "allow_on_submit": 1,
+            "default": "0",
+            "fieldname": "cut_qty",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "SL \u0110\u00e3 c\u1eaft",
+            "read_only": 1
+        },
+        {
+            "allow_on_submit": 1,
+            "fieldname": "last_start_time",
+            "fieldtype": "Datetime",
+            "hidden": 1,
+            "label": "Last Start Time",
+            "read_only": 1
+        },
+        {
+            "allow_on_submit": 1,
+            "default": "0",
+            "fieldname": "total_duration",
+            "fieldtype": "Float",
+            "hidden": 1,
+            "label": "Total Duration (s)",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2026-01-11 18:44:43.462602",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Pattern",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

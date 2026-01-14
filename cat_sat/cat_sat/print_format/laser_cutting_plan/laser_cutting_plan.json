@@ -1,0 +1,18 @@
+{
+    "actions": [],
+    "creation": "2026-01-11 10:00:00.000000",
+    "custom_format": 1,
+    "default_print_language": "vi",
+    "disabled": 0,
+    "doc_type": "Cutting Order",
+    "doctype": "Print Format",
+    "html": "<!-- Logic is inside print_format.html, but bundled here for simplicity if needed. -->\n<!-- We will use standard file-based format loading if properly synced. -->\n",
+    "module": "Cat Sat",
+    "name": "Laser Cutting Plan",
+    "owner": "Administrator",
+    "print_format_builder": 0,
+    "print_format_type": "Jinja",
+    "raw_printing": 0,
+    "show_section_headings": 0,
+    "standard": "Yes"
+}

@@ -1,0 +1,60 @@
+{
+  "doctype": "DocType",
+  "name": "Cutting Requirement",
+  "module": "Cat Sat",
+  "custom": 0,
+  "is_submittable": 0,
+  "allow_rename": 1,
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "autoname": "CR-.#####",
+  "naming_rule": "Expression",
+  "field_order": [
+    "section_break_info",
+    "source_spec",
+    "status",
+    "section_break_items",
+    "items"
+  ],
+  "fields": [
+    {
+      "fieldname": "section_break_info",
+      "fieldtype": "Section Break",
+      "label": "Thông tin chung"
+    },
+    {
+      "fieldname": "source_spec",
+      "fieldtype": "Link",
+      "label": "Cutting Specification",
+      "options": "Cutting Specification",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Trạng thái",
+      "options": "Draft\nGenerated\nPlanned",
+      "default": "Draft"
+    },
+    {
+      "fieldname": "section_break_items",
+      "fieldtype": "Section Break",
+      "label": "Nhu cầu cắt"
+    },
+    {
+      "fieldname": "items",
+      "fieldtype": "Table",
+      "label": "Chi tiết",
+      "options": "Cutting Requirement Item"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    }
+  ]
+}

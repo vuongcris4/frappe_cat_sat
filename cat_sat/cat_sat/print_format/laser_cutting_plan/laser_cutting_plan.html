@@ -1,0 +1,207 @@
+{% set matrix = doc.get_matrix_data() %}
+
+{% if not matrix %}
+<div class="alert alert-warning">
+    Vui lòng chạy Tối ưu hóa trước để xem kết quả.
+</div>
+{% else %}
+<style>
+    .print-format {
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+    }
+
+    .header-info {
+        margin-bottom: 15px;
+    }
+
+    .header-info p {
+        margin: 3px 0;
+    }
+
+    h3 {
+        margin: 15px 0 10px 0;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #333;
+    }
+
+    .summary-table,
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+
+    .summary-table th,
+    .summary-table td,
+    .matrix-table th,
+    .matrix-table td {
+        border: 1px solid #999;
+        padding: 4px 6px;
+        text-align: center;
+    }
+
+    .summary-table th,
+    .matrix-table th {
+        background-color: #e0e0e0;
+        font-weight: bold;
+    }
+
+    .matrix-table th {
+        font-size: 10px;
+        max-width: 80px;
+        word-wrap: break-word;
+    }
+
+    .text-left {
+        text-align: left !important;
+    }
+
+    .text-right {
+        text-align: right !important;
+    }
+
+    .highlight {
+        background-color: #ffffcc;
+    }
+
+    .stats-row {
+        margin-top: 10px;
+        font-size: 12px;
+    }
+
+    .stats-row strong {
+        margin-right: 20px;
+    }
+</style>
+
+<div class="header-info">
+    <h2 style="margin:0;">LỆNH CẮT SẮT</h2>
+    <p><strong>Mã:</strong> {{ doc.name }}</p>
+    <p><strong>Thời gian:</strong> {{ doc.creation.strftime('%d/%m/%Y %H:%M') }}</p>
+    <p><strong>Chiều dài cây sắt:</strong> {{ doc.stock_length }}mm</p>
+</div>
+
+<!-- BẢNG 1: TỔNG KẾT CẮT -->
+<h3>TỔNG KẾT CẮT</h3>
+<table class="summary-table">
+    <thead>
+        <tr>
+            <th class="text-left" style="width:40%;">Tên đoạn sắt</th>
+            <th style="width:15%;">Đoạn (mm)</th>
+            <th style="width:15%;">SL cần</th>
+            <th style="width:15%;">SL cắt</th>
+            <th style="width:15%;">Tồn</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in matrix.items_summary %}
+        <tr>
+            <td class="text-left">{{ item.segment_name }}</td>
+            <td>{{ item.length_mm }}</td>
+            <td>{{ item.qty_required }}</td>
+            <td>{{ item.qty_produced }}</td>
+            <td {% if item.qty_remaining < 0 %}class="highlight" {% endif %}>
+                {{ item.qty_remaining }}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="stats-row">
+    <strong>Tổng số cây sắt cần dùng: {{ matrix.summary.total_stock }} cây</strong>
+    <strong>Hao hụt: {{ matrix.summary.total_waste_m }}m ({{ matrix.summary.waste_percent }}%)</strong>
+</div>
+
+<!-- BẢNG 2: KẾ HOẠCH CẮT CHI TIẾT -->
+<h3>KẾ HOẠCH CẮT CHI TIẾT ({{ matrix.column_headers|length }} loại)</h3>
+<table class="matrix-table">
+    <thead>
+        <tr>
+            <th rowspan="2" style="width:40px;">STT</th>
+            {% for col in matrix.column_headers %}
+            <th>{{ col.name }}</th>
+            {% endfor %}
+            <th rowspan="2" style="width:60px;">Hao hụt<br>(mm)</th>
+            <th rowspan="2" style="width:50px;">SL<br>cây</th>
+        </tr>
+        <tr>
+            {% for col in matrix.column_headers %}
+            <th style="font-weight:normal; font-size:9px;">({{ col.length }}mm)</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in matrix.rows %}
+        <tr>
+            <td>{{ row.stt }}</td>
+            {% for cell in row.cells %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+            <td>{{ row.waste }}</td>
+            <td><strong>{{ row.qty }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% set sync = doc.get_sync_data() %}
+{% if sync %}
+<!-- BẢNG 3: ĐỒNG BỘ HÀN MẢNH -->
+<h3 style="color: #c00;">ĐỒNG BỘ HÀN MẢNH - {{ sync.spec_name }}</h3>
+<p><em>Gợi ý: Ưu tiên cắt các đoạn còn thiếu để đạt đồng bộ.</em></p>
+
+<table class="summary-table">
+    <thead>
+        <tr>
+            <th class="text-left" style="width:40%;">Tên mảnh</th>
+            <th style="width:15%;">SL cần</th>
+            <th style="width:15%;">Đủ bộ để hàn</th>
+            <th style="width:15%;">Còn thiếu</th>
+            <th style="width:15%;">%</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for piece in sync.pieces %}
+        <tr {% if piece.percent < 50 %}style="background-color:#ffe0e0;" {% elif piece.percent>= 100
+            %}style="background-color:#e0ffe0;"{% endif %}>
+            <td class="text-left"><strong>{{ piece.piece_name }}</strong></td>
+            <td>{{ piece.qty_required }}</td>
+            <td><strong>{{ piece.complete_pieces }}</strong></td>
+            <td>{{ piece.remaining }}</td>
+            <td>{{ piece.percent }}%</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<details style="margin-top:10px;">
+    <summary style="cursor:pointer; font-weight:bold;">Chi tiết đoạn sắt theo mảnh</summary>
+    {% for piece in sync.pieces %}
+    <div style="margin:10px 0; padding:5px; border-left:3px solid #999;">
+        <strong>{{ piece.piece_name }}</strong>
+        <table class="matrix-table" style="font-size:10px;">
+            <tr>
+                <th>Đoạn</th>
+                <th>Dài (mm)</th>
+                <th>Cần/mảnh</th>
+                <th>Đã cắt</th>
+                <th>Đủ cho (mảnh)</th>
+            </tr>
+            {% for seg in piece.segments %}
+            <tr>
+                <td>{{ seg.segment_name }}</td>
+                <td>{{ seg.length_mm }}</td>
+                <td>{{ seg.qty_per_piece }}</td>
+                <td>{{ seg.produced }}</td>
+                <td>{{ seg.can_make }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endfor %}
+</details>
+{% endif %}
+
+{% endif %}

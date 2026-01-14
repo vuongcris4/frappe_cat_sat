@@ -1,0 +1,612 @@
+"""
+Cutting Optimization Service for IEA Steel Cutting
+Based on Django cat_sat_iea implementation
+
+Phase 1: Find all valid cutting patterns using CP-SAT enumerate_all_solutions
+Phase 2: Optimize pattern distribution with multi-objective (waste → surplus → priority)
+"""
+
+import frappe
+from frappe.utils import flt, cint
+from collections import defaultdict
+import hashlib
+import os
+import pickle
+
+try:
+    from ortools.sat.python import cp_model
+except ImportError:
+    cp_model = None
+
+# Scaling factor for decimal lengths (1162.2mm -> 11622)
+SCALING_FACTOR = 10
+
+# Maximum patterns to generate/cache
+SOLUTION_LIMIT = 100000
+
+
+class SolutionCollector(cp_model.CpSolverSolutionCallback):
+    """Callback to collect all valid cutting patterns"""
+    
+    def __init__(self, variables, limit=SOLUTION_LIMIT):
+        super().__init__()
+        self._variables = variables
+        self._limit = limit
+        self._solutions = []
+        self._seen = set()
+    
+    def on_solution_callback(self):
+        if len(self._solutions) >= self._limit:
+            self.StopSearch()
+            return
+        
+        # Extract solution
+        solution = tuple(self.Value(v) for v in self._variables)
+        
+        # Skip duplicates
+        if solution in self._seen:
+            return
+        
+        self._seen.add(solution)
+        self._solutions.append(list(solution))
+    
+    @property
+    def solutions(self):
+        return self._solutions
+
+
+def get_cache_path(stock_length, piece_lengths, blade_width, max_waste_pct, trim):
+    """Generate cache file path based on input parameters"""
+    cache_folder = os.path.join(frappe.get_site_path(), "private", "cutting_patterns_cache")
+    os.makedirs(cache_folder, exist_ok=True)
+    
+    params_string = f"{stock_length}-{tuple(sorted(piece_lengths))}-{blade_width}-{max_waste_pct}-{trim}"
+    input_hash = hashlib.sha256(params_string.encode('utf-8')).hexdigest()[:16]
+    
+    return os.path.join(cache_folder, f"patterns_{input_hash}.pkl")
+
+
+def find_efficient_cutting_patterns(stock_length, piece_lengths, blade_width, max_waste_pct, trim):
+    """
+    Phase 1: Find all valid cutting patterns using CP-SAT
+    
+    Args:
+        stock_length: Raw stock length (mm)
+        piece_lengths: List of segment lengths (mm)
+        blade_width: Kerf width (mm)
+        max_waste_pct: Maximum waste percentage (0.01 = 1%)
+        trim: Trim cut at start (mm)
+    
+    Returns:
+        List of (obj_value, solution) tuples where:
+        - obj_value: Total material used (mm)
+        - solution: List of counts for each piece length
+    """
+    # Convert to integers for CP-SAT
+    stock_int = int(stock_length * SCALING_FACTOR)
+    pieces_int = [int(l * SCALING_FACTOR) for l in piece_lengths]
+    blade_int = int(blade_width * SCALING_FACTOR)
+    trim_int = int(trim * SCALING_FACTOR)
+    
+    model = cp_model.CpModel()
+    num_pieces = len(pieces_int)
+    
+    # Variables: count of each segment type in a single pattern
+    counts = [model.NewIntVar(0, 30, f'segment_{i}') for i in range(num_pieces)]
+    
+    # Total material used = sum(length * count) + sum(count) * blade + trim
+    total_pieces_length = sum(counts[i] * pieces_int[i] for i in range(num_pieces))
+    total_kerf = cp_model.LinearExpr.Sum(counts) * blade_int
+    total_used = total_pieces_length + total_kerf + trim_int
+    
+    # Constraint: Must fit in stock
+    model.Add(total_used <= stock_int)
+    
+    # Constraint: Minimum utilization (1 - max_waste_pct)
+    min_used = int(stock_int * (1 - max_waste_pct))
+    model.Add(total_used >= min_used)
+    
+    # Constraint: Waste >= 0 (implicit from above, but explicit for clarity)
+    waste_var = model.NewIntVar(0, stock_int, 'waste')
+    model.Add(waste_var == stock_int - total_used)
+    model.Add(waste_var >= 0)
+    
+    # Setup solver to enumerate all solutions
+    solver = cp_model.CpSolver()
+    solver.parameters.enumerate_all_solutions = True
+    solver.parameters.log_search_progress = False
+    solver.parameters.num_search_workers = 1
+    
+    collector = SolutionCollector(counts, SOLUTION_LIMIT)
+    solver.Solve(model, collector)
+    
+    if not collector.solutions:
+        return []
+    
+    # Calculate obj_value (material used) for each solution
+    results = []
+    for sol in collector.solutions:
+        # Calculate total used in original scale
+        used_int = sum(sol[i] * pieces_int[i] for i in range(num_pieces))
+        used_int += sum(sol) * blade_int + trim_int
+        obj_value = used_int / SCALING_FACTOR
+        results.append((obj_value, sol))
+    
+    # Sort by obj_value descending (higher usage = less waste = better)
+    results.sort(key=lambda x: x[0], reverse=True)
+    
+    return results
+
+
+def get_or_calculate_patterns(stock_length, piece_lengths, blade_width, max_waste_pct=0.015, trim=0):
+    """
+    Get patterns from cache or calculate new ones
+    
+    Returns:
+        List of (obj_value, solution) tuples
+    """
+    cache_path = get_cache_path(stock_length, piece_lengths, blade_width, max_waste_pct, trim)
+    
+    # Try to load from cache
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'rb') as f:
+                patterns = pickle.load(f)
+            
+            # Filter patterns that still fit after trim
+            valid_patterns = [
+                (obj, sol) for obj, sol in patterns
+                if obj <= stock_length + 0.001
+            ]
+            
+            if valid_patterns:
+                return valid_patterns
+        except Exception:
+            pass  # Cache corrupted, recalculate
+    
+    # Calculate new patterns
+    patterns = find_efficient_cutting_patterns(
+        stock_length, piece_lengths, blade_width, max_waste_pct, trim
+    )
+    
+    # Save to cache
+    if patterns:
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump(patterns, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception:
+            pass  # Cache write failed, continue anyway
+    
+    return patterns
+
+
+@frappe.whitelist()
+def run_optimization(order_name: str):
+    """Main entry point for cutting optimization"""
+    if not cp_model:
+        frappe.throw("Thư viện 'ortools' chưa được cài đặt. Vui lòng cài đặt: 'pip install ortools'")
+    
+    order = frappe.get_doc("Cutting Order", order_name)
+    
+    if order.docstatus == 1:
+        frappe.throw("Không thể tối ưu hóa Lệnh cắt đã Submit. Vui lòng Cancel và Amend để chỉnh sửa.")
+    
+    if not order.items:
+        frappe.throw("Lệnh cắt chưa có chi tiết nào.")
+    
+    # Prepare input
+    stock_length = flt(order.stock_length)
+    trim = flt(order.trim_cut or 0)
+    blade_width = flt(order.blade_width or 1)
+    
+    if stock_length <= 0:
+        frappe.throw("Chiều dài cây sắt phải lớn hơn 0")
+    
+    effective_length = stock_length - trim
+    if effective_length <= 0:
+        frappe.throw("Chiều dài khả dụng không đủ (Chiều dài - Tề đầu <= 0)")
+    
+    # Build demand map
+    item_map = defaultdict(int)
+    piece_names = {}  # length -> name
+    for item in order.items:
+        length = flt(item.length_mm)
+        item_map[length] += cint(item.qty)
+        if length not in piece_names:
+            piece_names[length] = item.note or f"{length}mm"
+    
+    piece_lengths = sorted(item_map.keys(), reverse=True)
+    demands = [item_map[l] for l in piece_lengths]
+    
+    # Validate
+    for l in piece_lengths:
+        if l > effective_length:
+            frappe.throw(f"Chi tiết dài {l}mm lớn hơn chiều dài khả dụng ({effective_length}mm)")
+    
+    # Choose algorithm based on bundling mode
+    if order.enable_bundling:
+        # MCTĐ mode with bundle factors
+        if not order.steel_profile:
+            frappe.throw("Vui lòng chọn Steel Profile trước khi dùng chế độ MCTĐ.")
+        
+        bundle_factors_str = frappe.db.get_value("Steel Profile", order.steel_profile, "bundle_factors")
+        if not bundle_factors_str:
+            frappe.throw(f"Steel Profile '{order.steel_profile}' chưa có hệ số bó.")
+        
+        factors = [1]  # Always include manual cut
+        for f in bundle_factors_str.split():
+            try:
+                factor = int(f.strip())
+                if factor > 1 and factor not in factors:
+                    factors.append(factor)
+            except ValueError:
+                pass
+        factors = sorted(set(factors), reverse=True)
+        
+        sol = solve_bundled_cutting_stock(
+            piece_lengths,
+            demands,
+            piece_names,
+            stock_length,
+            blade_width,
+            trim,
+            factors,
+            cint(order.manual_cut_limit or 10),
+            cint(order.max_over_production or 20)
+        )
+    else:
+        # Laser mode - multi-objective optimization
+        sol = solve_laser_cutting_stock(
+            piece_lengths,
+            demands,
+            piece_names,
+            stock_length,
+            blade_width,
+            trim,
+            cint(order.max_over_production or 10)
+        )
+    
+    # Save results
+    order.set("optimization_result", [])
+    for pat in sol:
+        pattern_str = " + ".join([f"{c}x{l}" for l, c in pat['pattern'].items()])
+        
+        order.append("optimization_result", {
+            "pattern": pattern_str,
+            "used_length": pat.get('used_length', 0),
+            "waste": pat.get('waste', 0),
+            "qty": pat['qty']
+        })
+    
+    # Generate HTML result display
+    result_html = generate_result_html(
+        sol, piece_lengths, piece_names, demands, stock_length, order.enable_bundling
+    )
+    order.result_html = result_html
+    
+    order.status = "Optimized"
+    order.save(ignore_permissions=True)
+    
+    return sol
+
+
+def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_length, is_bundling=False):
+    """
+    Generate HTML display for optimization results like Django app
+    
+    Args:
+        patterns: List of pattern dicts with 'pattern', 'qty', 'waste', etc.
+        piece_lengths: List of segment lengths
+        piece_names: Dict of length -> name
+        demands: List of demands for each length
+        stock_length: Stock length in mm
+        is_bundling: Whether bundling mode is enabled
+    
+    Returns:
+        HTML string
+    """
+    from datetime import datetime
+    
+    if not patterns:
+        return "<p>Không có kết quả tối ưu.</p>"
+    
+    html_parts = []
+    
+    # Header with timestamp
+    now = datetime.now()
+    html_parts.append(f"<p><b>Thời gian:</b> {now.strftime('%d/%m/%Y %H:%M:%S')}</p>")
+    html_parts.append(f"<p><b>Chiều dài cây sắt:</b> {stock_length}mm</p>")
+    
+    # Calculate production totals
+    production = {l: 0 for l in piece_lengths}
+    for pat in patterns:
+        for l, c in pat['pattern'].items():
+            production[l] += c * pat['qty']
+    
+    # Summary table
+    title = "TỔNG KẾT CẮT TỰ ĐỘNG" if is_bundling else "TỔNG KẾT CẮT LASER"
+    html_parts.append(f"<h4>{title}</h4>")
+    html_parts.append('<table class="table table-bordered table-sm" style="text-align:center">')
+    html_parts.append('<thead><tr><th>Tên sắt</th><th>Đoạn (mm)</th><th>SL cần (đoạn)</th><th>SL cắt (đoạn)</th><th>Tồn kho (đoạn)</th></tr></thead>')
+    html_parts.append('<tbody>')
+    
+    for i, l in enumerate(piece_lengths):
+        name = piece_names.get(l, f"{l}mm")
+        demand = demands[i]
+        produced = production.get(l, 0)
+        surplus = produced - demand
+        
+        # Format length
+        l_str = f"{int(l)}" if l == int(l) else f"{l:.1f}"
+        
+        html_parts.append(f'<tr><td>{name}</td><td>{l_str}</td><td>{demand}</td><td>{produced}</td><td>{surplus}</td></tr>')
+    
+    html_parts.append('</tbody></table>')
+    
+    # Total stats
+    total_bars = sum(pat['qty'] for pat in patterns)
+    total_waste = sum(pat.get('waste', 0) * pat['qty'] for pat in patterns)
+    waste_pct = (total_waste / (stock_length * total_bars) * 100) if total_bars > 0 else 0
+    
+    html_parts.append('<hr>')
+    html_parts.append(f"<p><b>Tổng số cây sắt cần dùng:</b> {total_bars} cây</p>")
+    html_parts.append(f"<p><b>Tổng hao hụt dài:</b> {total_waste/1000:.2f}m</p>")
+    html_parts.append(f"<p><b>Hao hụt:</b> {waste_pct:.2f}%</p>")
+    
+    # Detailed cutting plan table
+    html_parts.append(f"<h4>KẾ HOẠCH CẮT CHI TIẾT ({len(patterns)} loại)</h4>")
+    
+    # Build header row with segment names
+    html_parts.append('<table class="table table-bordered table-sm" style="text-align:center; font-size:0.9em">')
+    html_parts.append('<thead><tr><th>STT</th>')
+    
+    for l in piece_lengths:
+        name = piece_names.get(l, "")
+        l_str = f"{int(l)}" if l == int(l) else f"{l:.1f}"
+        html_parts.append(f'<th style="min-width:60px">{name}<br>({l_str}mm)</th>')
+    
+    html_parts.append('<th>Hao hụt (mm)</th><th>SL cây sắt</th>')
+    
+    # Add bundle factor column if bundling mode
+    if is_bundling:
+        html_parts.append('<th>Hệ số bó</th>')
+    
+    html_parts.append('</tr></thead>')
+    
+    # Build data rows
+    html_parts.append('<tbody>')
+    for idx, pat in enumerate(patterns, 1):
+        html_parts.append(f'<tr><td>{idx}</td>')
+        
+        for l in piece_lengths:
+            count = pat['pattern'].get(l, 0)
+            # Display empty if 0, bold number otherwise
+            if count > 0:
+                html_parts.append(f'<td style="font-weight:bold">{count}</td>')
+            else:
+                html_parts.append('<td></td>')
+        
+        waste = pat.get('waste', 0)
+        waste_str = f"{int(waste)}" if waste == int(waste) else f"{waste:.1f}"
+        html_parts.append(f'<td>{waste_str}</td>')
+        html_parts.append(f'<td style="font-weight:bold">{pat["qty"]}</td>')
+        
+        if is_bundling:
+            factor = pat.get('factor', 1)
+            html_parts.append(f'<td>{factor}</td>')
+        
+        html_parts.append('</tr>')
+    
+    html_parts.append('</tbody></table>')
+    
+    return '\n'.join(html_parts)
+
+
+def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length, blade_width, trim, max_surplus):
+    """
+    Laser cutting optimization with multi-objective:
+    1. Minimize total waste
+    2. Minimize total surplus
+    
+    Returns:
+        List of pattern dicts with 'pattern', 'qty', 'waste', 'used_length'
+    """
+    # Phase 1: Get patterns
+    patterns = get_or_calculate_patterns(stock_length, piece_lengths, blade_width, 0.015, trim)
+    
+    if not patterns:
+        frappe.throw("Không tìm được pattern nào phù hợp.")
+    
+    num_patterns = len(patterns)
+    num_pieces = len(piece_lengths)
+    
+    # Phase 2: Optimize distribution
+    model = cp_model.CpModel()
+    
+    # Variables: number of times to use each pattern
+    x = [model.NewIntVar(0, sum(demands) * 2, f'x_{j}') for j in range(num_patterns)]
+    
+    # Production for each piece type
+    production = []
+    surplus_vars = []
+    for i in range(num_pieces):
+        # Production = sum(pattern_count[i] * x[j]) for all patterns j
+        prod = sum(patterns[j][1][i] * x[j] for j in range(num_patterns))
+        production.append(prod)
+        
+        # Surplus variable
+        s = model.NewIntVar(0, sum(demands), f'surplus_{i}')
+        model.Add(s == prod - demands[i])
+        model.Add(prod >= demands[i])  # Must meet demand
+        model.Add(s <= max_surplus)  # Limit surplus
+        surplus_vars.append(s)
+    
+    # Calculate waste for each pattern (in mm, scaled)
+    waste_per_pattern = []
+    for obj_value, sol in patterns:
+        waste = stock_length - obj_value
+        waste_per_pattern.append(int(waste * SCALING_FACTOR))
+    
+    # Objective 1: Minimize total waste
+    total_waste = sum(waste_per_pattern[j] * x[j] for j in range(num_patterns))
+    model.Minimize(total_waste)
+    
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = 60
+    status = solver.Solve(model)
+    
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        frappe.throw("Không tìm được phương án cắt. Thử tăng tồn kho cho phép.")
+    
+    min_waste = int(solver.ObjectiveValue())
+    
+    # Lock waste and minimize surplus
+    model.Add(total_waste == min_waste)
+    total_surplus = sum(surplus_vars)
+    model.Minimize(total_surplus)
+    
+    status = solver.Solve(model)
+    
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        frappe.throw("Không tìm được phương án tối ưu tồn kho.")
+    
+    # Extract solution
+    result_patterns = []
+    for j in range(num_patterns):
+        qty = solver.Value(x[j])
+        if qty > 0:
+            obj_value, sol = patterns[j]
+            pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
+            
+            result_patterns.append({
+                'pattern': pattern_dict,
+                'qty': qty,
+                'used_length': obj_value,
+                'waste': stock_length - obj_value
+            })
+    
+    return result_patterns
+
+
+def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_length, blade_width, trim, 
+                                 factors, manual_cut_limit, max_over):
+    """
+    MCTĐ (Bundle cutting) optimization
+    
+    Phase 1: Generate patterns (max 5 different sizes)
+    Phase 2: Optimize bundle distribution with factors
+    """
+    # Phase 1: Get patterns
+    patterns = get_or_calculate_patterns(stock_length, piece_lengths, blade_width, 0.015, trim)
+    
+    if not patterns:
+        frappe.throw("Không tìm được pattern nào phù hợp.")
+    
+    # Filter to max 5 different sizes per pattern (MCTĐ machine constraint)
+    if len(piece_lengths) > 5:
+        filtered = [
+            (obj, sol) for obj, sol in patterns
+            if sum(1 for s in sol if s > 0) <= 5
+        ]
+        if filtered:
+            patterns = filtered
+    
+    num_patterns = len(patterns)
+    num_pieces = len(piece_lengths)
+    
+    # Phase 2: Bundle optimization
+    model = cp_model.CpModel()
+    
+    # Filter out factor 0
+    pos_factors = [f for f in factors if f > 0]
+    
+    # Variables: b[pattern][factor] = number of bundles
+    b = {}
+    for j in range(num_patterns):
+        for f in pos_factors:
+            # Upper bound estimation
+            max_bundles = max(1, sum(demands) // f + 1)
+            b[(j, f)] = model.NewIntVar(0, max_bundles, f'b_{j}_{f}')
+    
+    # Production for each piece type
+    production = []
+    for i in range(num_pieces):
+        terms = []
+        for j in range(num_patterns):
+            count_in_pattern = patterns[j][1][i]
+            if count_in_pattern > 0:
+                for f in pos_factors:
+                    terms.append(count_in_pattern * f * b[(j, f)])
+        
+        if terms:
+            prod = sum(terms)
+        else:
+            prod = 0
+        production.append(prod)
+    
+    # Constraints
+    surplus_vars = []
+    for i in range(num_pieces):
+        if isinstance(production[i], int):
+            if production[i] < demands[i]:
+                frappe.throw(f"Không thể đáp ứng nhu cầu cho đoạn {piece_lengths[i]}mm")
+        else:
+            model.Add(production[i] >= demands[i])
+            model.Add(production[i] <= demands[i] + max_over)
+            
+            s = model.NewIntVar(0, sum(demands), f'surplus_{i}')
+            model.Add(s == production[i] - demands[i])
+            surplus_vars.append(s)
+    
+    # Limit manual cuts (factor = 1)
+    if 1 in pos_factors:
+        manual_cuts = sum(b[(j, 1)] for j in range(num_patterns))
+        model.Add(manual_cuts <= manual_cut_limit)
+    
+    # Calculate waste per pattern
+    waste_per_pattern = []
+    for obj_value, sol in patterns:
+        waste = stock_length - obj_value
+        waste_per_pattern.append(int(waste * 1000))  # Scale for integer math
+    
+    # Objective: Minimize waste (weighted by total bars used)
+    total_waste_terms = []
+    total_bars_terms = []
+    for j in range(num_patterns):
+        for f in pos_factors:
+            total_bars_terms.append(f * b[(j, f)])
+            total_waste_terms.append(waste_per_pattern[j] * f * b[(j, f)])
+    
+    # Multi-objective: waste * W1 + bars * W2
+    W1 = 1000000
+    W2 = 1
+    objective = sum(total_waste_terms) * W1 + sum(total_bars_terms) * W2
+    model.Minimize(objective)
+    
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = 60
+    solver.parameters.num_search_workers = 8
+    status = solver.Solve(model)
+    
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        frappe.throw("Không tìm được phương án. Thử tăng cắt tay hoặc tồn kho cho phép.")
+    
+    # Extract solution
+    result_patterns = []
+    for j in range(num_patterns):
+        for f in pos_factors:
+            num_bundles = solver.Value(b[(j, f)])
+            if num_bundles > 0:
+                obj_value, sol = patterns[j]
+                pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
+                
+                result_patterns.append({
+                    'pattern': pattern_dict,
+                    'qty': num_bundles * f,  # Total bars
+                    'factor': f,
+                    'bundles': num_bundles,
+                    'used_length': obj_value,
+                    'waste': stock_length - obj_value
+                })
+    
+    return result_patterns

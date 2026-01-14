@@ -1,0 +1,73 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2026-01-08 20:06:30.540617",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "cutting_plan",
+        "steel_item",
+        "total_bar",
+        "total_waste_mm",
+        "patterns"
+    ],
+    "fields": [
+        {
+            "fieldname": "cutting_plan",
+            "fieldtype": "Link",
+            "label": "Cutting Plan",
+            "options": "Cutting Plan",
+            "reqd": 1
+        },
+        {
+            "fieldname": "steel_item",
+            "fieldtype": "Link",
+            "label": "Loại sắt",
+            "options": "Item",
+            "reqd": 1
+        },
+        {
+            "fieldname": "total_bar",
+            "fieldtype": "Int",
+            "label": "Tổng số cây"
+        },
+        {
+            "fieldname": "total_waste_mm",
+            "fieldtype": "Float",
+            "label": "Tổng hao hụt (mm)"
+        },
+        {
+            "fieldname": "patterns",
+            "fieldtype": "Code",
+            "label": "Pattern JSON",
+            "options": "JSON"
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-01-08 20:06:30.540617",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Optimization Result",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

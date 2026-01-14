@@ -1,0 +1,63 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2026-01-08 20:04:22.728035",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "product_bundle",
+        "item_code",
+        "product_qty",
+        "cutting_specification"
+    ],
+    "fields": [
+        {
+            "fieldname": "product_bundle",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "SKU Khách hàng",
+            "options": "Product Bundle",
+            "description": "Chọn Product Bundle để tự động thêm tất cả Items bên trong"
+        },
+        {
+            "fieldname": "item_code",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Thành phẩm (Mã NM)",
+            "options": "Item",
+            "reqd": 1
+        },
+        {
+            "default": "1",
+            "fieldname": "product_qty",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Số lượng SX",
+            "reqd": 1
+        },
+        {
+            "fieldname": "cutting_specification",
+            "fieldtype": "Link",
+            "options": "Cutting Specification",
+            "label": "Định mức sắt",
+            "read_only": 1,
+            "fetch_from": "item_code.cutting_specification"
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "istable": 1,
+    "links": [],
+    "modified": "2026-01-10 19:07:17.390727",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Plan Item",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

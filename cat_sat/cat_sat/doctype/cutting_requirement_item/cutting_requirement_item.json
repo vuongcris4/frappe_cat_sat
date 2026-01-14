@@ -1,0 +1,61 @@
+{
+  "doctype": "DocType",
+  "name": "Cutting Requirement Item",
+  "module": "Cat Sat",
+  "istable": 1,
+  "editable_grid": 1,
+  "field_order": [
+    "steel_profile",
+    "length_mm",
+    "bend_type",
+    "punch_hole_qty",
+    "rivet_hole_qty",
+    "total_qty"
+  ],
+  "fields": [
+    {
+      "fieldname": "steel_profile",
+      "fieldtype": "Link",
+      "label": "Loại sắt",
+      "options": "Steel Profile",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "length_mm",
+      "fieldtype": "Float",
+      "label": "Chiều dài (mm)",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "bend_type",
+      "fieldtype": "Select",
+      "label": "Uốn",
+      "options": "Không\nUốn 1 đầu\nUốn 2 đầu\nUốn cong",
+      "default": "Không",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "punch_hole_qty",
+      "fieldtype": "Int",
+      "label": "Số lỗ dập",
+      "default": 0,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "rivet_hole_qty",
+      "fieldtype": "Int",
+      "label": "Số lỗ tán",
+      "default": 0,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "total_qty",
+      "fieldtype": "Int",
+      "label": "Tổng số đoạn",
+      "reqd": 1,
+      "in_list_view": 1
+    }
+  ]
+}

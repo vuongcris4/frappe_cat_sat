@@ -21,6 +21,10 @@ app_license = "mit"
 # 	}
 # ]
 
+patches = ["cat_sat.patches.v1_0_setup_steel_items"]
+fixtures = ["Custom Field"]
+
+
 # Includes in <head>
 # ------------------
 
@@ -43,7 +47,14 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+
+# doctype_js = {
+#     "Cutting Order": [
+#         "public/js/cutting_pattern.js",
+#         "public/js/pattern_actions.js"
+#     ]
+# }
+
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -137,13 +148,8 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {"Item": {"validate": "cat_sat.naming.set_variant_name"}}
+
 
 # Scheduled Tasks
 # ---------------
@@ -241,4 +247,3 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-

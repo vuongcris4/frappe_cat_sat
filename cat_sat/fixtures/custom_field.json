@@ -1,0 +1,120 @@
+[
+  {
+    "doctype": "Custom Field",
+    "name": "Item-is_cutting_steel",
+    "dt": "Item",
+    "fieldname": "is_cutting_steel",
+    "label": "Cắt sắt",
+    "fieldtype": "Check",
+    "insert_after": "is_stock_item",
+    "default": 0
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-bundle_sizes",
+    "dt": "Item",
+    "fieldname": "bundle_sizes",
+    "label": "Số bó sắt",
+    "fieldtype": "Data",
+    "depends_on": "eval:doc.is_cutting_steel",
+    "description": "VD: 10,12,14,16",
+    "insert_after": "is_cutting_steel"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-cutting_specification",
+    "dt": "Item",
+    "fieldname": "cutting_specification",
+    "label": "Bảng cắt sắt",
+    "fieldtype": "Link",
+    "options": "Cutting Specification",
+    "insert_after": "item_group"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-section_break_iea",
+    "dt": "Item",
+    "fieldname": "section_break_iea",
+    "label": "Thông tin IEA",
+    "fieldtype": "Section Break",
+    "insert_after": "cutting_specification",
+    "collapsible": 1
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-factory_code",
+    "dt": "Item",
+    "fieldname": "factory_code",
+    "label": "Mã nhà máy IEA",
+    "fieldtype": "Data",
+    "insert_after": "section_break_iea",
+    "description": "VD: i3, i5, A1..."
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-wire_color",
+    "dt": "Item",
+    "fieldname": "wire_color",
+    "label": "Màu dây",
+    "fieldtype": "Select",
+    "insert_after": "factory_code",
+    "options": "\nBán nguyệt\nĐen\nNâu\nXám be\nXám bông\nĐen nâu\nNâu đóm\nDây cạp đôi\nVàng 29\nNâu 08\nNâu 3 khía\nNâu 04\nNâu chữ h\nSht21"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-column_break_iea",
+    "dt": "Item",
+    "fieldname": "column_break_iea",
+    "fieldtype": "Column Break",
+    "insert_after": "wire_color"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-cushion_color",
+    "dt": "Item",
+    "fieldname": "cushion_color",
+    "label": "Màu nệm",
+    "fieldtype": "Select",
+    "insert_after": "column_break_iea",
+    "options": "\nBe\nĐỏ"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Item-table_surface_type",
+    "dt": "Item",
+    "fieldname": "table_surface_type",
+    "label": "Loại mặt bàn",
+    "fieldtype": "Select",
+    "insert_after": "cushion_color",
+    "options": "\nKhông có\nGỗ\nKính"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Product Bundle-section_break_iea",
+    "dt": "Product Bundle",
+    "fieldname": "section_break_iea",
+    "label": "Thông tin SKU khách hàng",
+    "fieldtype": "Section Break",
+    "insert_after": "new_item_code"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Product Bundle-iea_customer",
+    "dt": "Product Bundle",
+    "fieldname": "iea_customer",
+    "label": "Khách hàng IEA",
+    "fieldtype": "Link",
+    "options": "Customer",
+    "insert_after": "section_break_iea"
+  },
+  {
+    "doctype": "Custom Field",
+    "name": "Product Bundle-customer_sku",
+    "dt": "Product Bundle",
+    "fieldname": "customer_sku",
+    "label": "Mã SKU gốc từ khách",
+    "fieldtype": "Data",
+    "insert_after": "iea_customer",
+    "description": "Mã SKU mà khách hàng sử dụng"
+  }
+]
