@@ -25,37 +25,73 @@ window.catsat_handle_action = function (event, row_idx, current_status) {
     let action = (current_status === "In Progress") ? "Stop" : "Start";
 
     if (action === "Stop") {
-        frappe.prompt([
-            {
-                label: __("Số cây vừa cắt xong"),
-                fieldname: "session_qty",
-                fieldtype: "Int",
-                reqd: 1,
-                default: 1
-            },
-            {
-                fieldtype: "Section Break",
-                label: __("Thông tin máy (cho AI training)")
-            },
-            {
-                label: __("Máy số"),
-                fieldname: "machine_no",
-                fieldtype: "Select",
-                options: "\n1\n2\n3\n4"
-            },
-            {
-                label: __("Tốc độ Laser (%)"),
-                fieldname: "laser_speed",
-                fieldtype: "Int"
-            },
-            {
-                label: __("Ghi chú vấn đề"),
-                fieldname: "issue_note",
-                fieldtype: "Small Text"
+        // Use frappe.ui.Dialog for better control over events and validation
+        let d = new frappe.ui.Dialog({
+            title: __("Xác nhận hoàn thành"),
+            fields: [
+                {
+                    label: __("Số cây vừa cắt xong"),
+                    fieldname: "session_qty",
+                    fieldtype: "Int",
+                    reqd: 1,
+                    default: 1
+                },
+                {
+                    fieldtype: "Section Break",
+                    label: __("Thông tin máy (cho AI training)")
+                },
+                {
+                    label: __("Máy số"),
+                    fieldname: "machine_no",
+                    fieldtype: "Select",
+                    options: ["", "1", "2", "3", "4"], // Add empty option to force selection if desired, or keep default
+                    reqd: 1,
+                    onchange: () => {
+                        let machine = d.get_value("machine_no");
+                        if (machine) {
+                            let last_speed = localStorage.getItem(`catsat_laser_speed_machine_${machine}`);
+                            if (last_speed) {
+                                d.set_value("laser_speed", last_speed);
+                            }
+                        }
+                    }
+                },
+                {
+                    label: __("Tốc độ Laser (%)"),
+                    fieldname: "laser_speed",
+                    fieldtype: "Int"
+                },
+                {
+                    label: __("Ghi chú vấn đề"),
+                    fieldname: "issue_note",
+                    fieldtype: "Small Text"
+                }
+            ],
+            primary_action_label: __("Lưu"),
+            primary_action: (values) => {
+                // Save laser speed for the selected machine
+                if (values.machine_no && values.laser_speed) {
+                    localStorage.setItem(`catsat_laser_speed_machine_${values.machine_no}`, values.laser_speed);
+                    localStorage.setItem(`catsat_last_machine_no`, values.machine_no);
+                }
+
+                d.hide();
+                catsat_execute_action(frm, row_idx, action, values.session_qty, values.machine_no, values.laser_speed, values.issue_note);
             }
-        ], (values) => {
-            catsat_execute_action(frm, row_idx, action, values.session_qty, values.machine_no, values.laser_speed, values.issue_note);
-        }, __("Xác nhận hoàn thành"), __("Lưu"));
+        });
+
+        // Load last used machine
+        let last_machine = localStorage.getItem('catsat_last_machine_no');
+        if (last_machine) {
+            d.set_value('machine_no', last_machine);
+            // Trigger speed load
+            let last_speed = localStorage.getItem(`catsat_laser_speed_machine_${last_machine}`);
+            if (last_speed) {
+                d.set_value('laser_speed', last_speed);
+            }
+        }
+
+        d.show();
     } else {
         catsat_execute_action(frm, row_idx, action, 0, null, null, null);
     }

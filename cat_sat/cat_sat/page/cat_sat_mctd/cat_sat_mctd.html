@@ -1,0 +1,64 @@
+<h1>⚙️ Tối Ưu Máy Cắt Tự Động (MCTĐ)</h1>
+<p>Phân bổ bó sắt</p>
+
+<div class="container" style="max-width: 1400px; padding: 20px;">
+    <!-- Settings Panel -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="frappe-card">
+                <div class="card-body">
+                    <h5>⚙️ Cài đặt</h5>
+                    <div class="form-group mb-3">
+                        <label>Loại sắt</label>
+                        <select id="steel_profile" class="form-control"
+                            onchange="cat_sat_mctd.update_factors()"></select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Hệ số bó</label>
+                        <input type="text" id="bundle_factors" class="form-control" readonly>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Chiều dài cây sắt (mm)</label>
+                        <input type="number" id="stock_length" class="form-control" value="5850">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Mạch cắt (mm)</label>
+                        <input type="number" id="blade_width" class="form-control" value="2.5" step="0.1">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Giới hạn cắt lẻ (cây)</label>
+                        <input type="number" id="manual_cut_limit" class="form-control" value="10">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Tồn kho max (đoạn)</label>
+                        <input type="number" id="max_surplus" class="form-control" value="20">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="frappe-card">
+                <div class="card-body">
+                    <h5>📝 Danh sách đoạn</h5>
+                    <div id="input_table"></div>
+                    <button class="btn btn-sm btn-secondary mt-2" onclick="cat_sat_mctd.add_row()">+ Thêm dòng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <button id="btn_optimize" class="btn btn-success btn-lg" onclick="cat_sat_mctd.run_optimization()">
+                ⚡ TỐI ƯU HÓA
+            </button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="result_container" style="display: none;">
+        <div id="result_summary"></div>
+    </div>
+</div>

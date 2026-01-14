@@ -1,0 +1,231 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"P-Ggb2Ro9a\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Cat Sat</b></span>\",\"col\":12}},{\"id\":\"vFucNSSPST\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Plan\",\"col\":3}},{\"id\":\"5uUEu4HRb4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Order\",\"col\":3}},{\"id\":\"fUo64mDsgO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Steel Profile\",\"col\":3}},{\"id\":\"j9aDg2z7iv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"4VguTkF-64\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Specification\",\"col\":3}},{\"id\":\"3sm_Xp2Evn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"W3IunJJhO7\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"9IwFm2XRjc\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Planning &amp; Orders</span>\",\"col\":12}},{\"id\":\"sTVzC4LaXQ\",\"type\":\"card\",\"data\":{\"card_name\":\"K\u1ebf Ho\u1ea1ch & L\u1ec7nh C\u1eaft\",\"col\":4}},{\"id\":\"Jjc4JZQMUb\",\"type\":\"card\",\"data\":{\"card_name\":\"\u0110\u1ecbnh M\u1ee9c & C\u00e0i \u0110\u1eb7t\",\"col\":4}},{\"id\":\"97z_Rwvu1g\",\"type\":\"card\",\"data\":{\"card_name\":\"Portal C\u00f4ng Nh\u00e2n\",\"col\":4}}]",
+ "creation": "2026-01-14 17:40:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "tool",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Cat Sat",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "K\u1ebf Ho\u1ea1ch & L\u1ec7nh C\u1eaft",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cutting Plan",
+   "link_count": 0,
+   "link_to": "Cutting Plan",
+   "link_type": "DocType",
+   "onboard": 1,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cutting Order",
+   "link_count": 0,
+   "link_to": "Cutting Order",
+   "link_type": "DocType",
+   "onboard": 1,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cutting Production Log",
+   "link_count": 0,
+   "link_to": "Cutting Production Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Stock Entry",
+   "link_count": 0,
+   "link_to": "Stock Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "\u0110\u1ecbnh M\u1ee9c & C\u00e0i \u0110\u1eb7t",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Item",
+   "link_count": 0,
+   "link_to": "Item",
+   "link_type": "DocType",
+   "onboard": 1,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cutting Specification",
+   "link_count": 0,
+   "link_to": "Cutting Specification",
+   "link_type": "DocType",
+   "onboard": 1,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Steel Profile",
+   "link_count": 0,
+   "link_to": "Steel Profile",
+   "link_type": "DocType",
+   "onboard": 1,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Cutting Settings",
+   "link_count": 0,
+   "link_to": "Cutting Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Portal C\u00f4ng Nh\u00e2n",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Portal C\u1eaft S\u1eaft",
+   "link_count": 0,
+   "link_to": "cat-sat-portal",
+   "link_type": "Page",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Laser Cutting Portal",
+   "link_count": 0,
+   "link_to": "cat-sat-laser",
+   "link_type": "Page",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MCT\u0110 Portal",
+   "link_count": 0,
+   "link_to": "cat-sat-mctd",
+   "link_type": "Page",
+   "onboard": 0,
+   "only_for": "",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-01-14 04:02:05.870208",
+ "modified_by": "Administrator",
+ "module": "Cat Sat",
+ "name": "Cat Sat",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Cutting Plan",
+   "link_to": "Cutting Plan",
+   "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Cutting Order",
+   "link_to": "Cutting Order",
+   "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Steel Profile",
+   "link_to": "Steel Profile",
+   "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Item",
+   "link_to": "Item",
+   "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Cutting Specification",
+   "link_to": "Cutting Specification",
+   "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Stock Entry",
+   "link_to": "Stock Entry",
+   "stats_filter": "",
+   "type": "DocType"
+  }
+ ],
+ "title": "Cat Sat"
+}
