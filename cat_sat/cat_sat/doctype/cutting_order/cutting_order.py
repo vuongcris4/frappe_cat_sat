@@ -17,10 +17,10 @@ class CuttingOrder(Document):
 		if not self.optimization_result:
 			return None
 
-		# Build item name map: length -> segment_name
+		# Build item name map: length -> segment_name (use flt for consistent keys)
 		item_name_map = {}
 		for item in self.items:
-			item_name_map[item.length_mm] = item.segment_name or f"{item.length_mm}mm"
+			item_name_map[flt(item.length_mm)] = item.segment_name or f"{item.length_mm}mm"
 
 		unique_lengths = set()
 		parsed_patterns = []
@@ -34,10 +34,11 @@ class CuttingOrder(Document):
 					if "x" in part:
 						try:
 							c, l = part.split("x")
-							l_int = int(l)
+							# Handle float lengths like "1162.2"
+							l_float = flt(l)
 							c_int = int(c)
-							counts[l_int] = c_int
-							unique_lengths.add(l_int)
+							counts[l_float] = c_int
+							unique_lengths.add(l_float)
 						except ValueError:
 							pass
 
@@ -327,14 +328,30 @@ class CuttingOrder(Document):
 						try:
 							c, l = part.split("x")
 							count = int(c)
-							length = int(l)
+							# Handle float lengths like "1162.2" 
+							length = flt(l)
 							produced_map[length] += count * row.cut_qty
 						except ValueError:
 							pass
 
-		# 3. Update Order Items
+		# 3. Update Order Items (FIFO Distribution)
+		# We use a copy to track remaining available cuts as we distribute them
+		remaining_produced = produced_map.copy()
+
 		for item in self.items:
-			item.produced_qty = produced_map.get(item.length_mm, 0)
+			# Use flt for consistent key matching with pattern-parsed float lengths
+			key = flt(item.length_mm)
+			available = remaining_produced.get(key, 0)
+			required = item.qty
+			
+			# Assign min(required, available) to this specific item row
+			allocated = min(required, available)
+			item.produced_qty = allocated
+			
+			# Decrement available count for next items of same length
+			if key in remaining_produced:
+				remaining_produced[key] = max(0, available - allocated)
+
 			total_required_cuts += item.qty
 			total_made_cuts += item.produced_qty
 

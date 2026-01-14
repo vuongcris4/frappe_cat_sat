@@ -129,13 +129,30 @@ function render_progress_dashboard(frm) {
 				for (const prod of data.complete_products) {
 					const color = prod.percent >= 100 ? '#d4edda' : (prod.percent < 50 ? '#f8d7da' : '#fff3cd');
 					html += `<tr style="background:${color};">
-						<td>${prod.item_code}</td>
+						<td><strong>${prod.item_code}</strong></td>
 						<td>${prod.item_name || ''}</td>
 						<td>${prod.qty_required}</td>
 						<td><strong style="font-size:1.2em">${prod.qty_complete}</strong></td>
 						<td>${prod.remaining}</td>
 						<td>${prod.percent}%</td>
 					</tr>`;
+
+					// Detailed breakdown of pieces (if any)
+					if (prod.pieces && prod.pieces.length > 0) {
+						html += `<tr style="background:#f9f9f9;">
+							<td colspan="6" style="text-align:left; padding:5px 20px;">
+								<small><em>Chi tiết đồng bộ mảnh:</em></small>
+								<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:5px;">`;
+
+						for (const p of prod.pieces) {
+							const p_color = p.allocated >= p.required ? '#28a745' : '#dc3545';
+							html += `<span style="border:1px solid #ddd; padding:2px 6px; border-radius:3px; font-size:0.85em; background:#fff;">
+								${p.piece_name}: <b style="color:${p_color}">${p.allocated}/${p.required}</b>
+							</span>`;
+						}
+
+						html += `</div></td></tr>`;
+					}
 				}
 				html += '</tbody></table>';
 			}

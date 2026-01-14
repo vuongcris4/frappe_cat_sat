@@ -56,50 +56,127 @@ class CuttingPlan(Document):
 				if sync:
 					sync_data.append(sync)
 		
-		# Calculate complete products for each Item in plan
+		# Calculate complete products using POOLED distribution
+		# We aggregate ALL produced quantities from all orders into a single pool
+		# Then attempting to "build" products sequentially until pool is exhausted.
+		
+		# 1. Build Global Produced Pool: (Steel Profile, Length) -> Total Produced
+		global_produced_pool = defaultdict(int)
+		for order_info in orders:
+			order_doc = frappe.get_doc("Cutting Order", order_info.name)
+			for item in order_doc.items:
+				key = (order_info.steel_profile, item.length_mm)
+				global_produced_pool[key] += item.produced_qty or 0
+
+		# 2. Iterate Plan Items (Products) and calculate completion
 		complete_products = []
+		
 		for plan_item in self.items:
 			item_code = plan_item.item_code
 			product_qty = plan_item.product_qty
 			
-			# Get cutting specification for this item
 			spec_name = frappe.db.get_value("Item", item_code, "cutting_specification")
 			if not spec_name:
 				continue
 			
 			spec = frappe.get_doc("Cutting Specification", spec_name)
 			
-			# Calculate how many complete products can be made
-			# = min(complete_pieces / piece_qty for each piece)
-			min_complete = float('inf')
+			# Determine how many products we can make from the GLOBAL pool
+			# This is tricky because multiple products might share the same profile/length resources.
+			# Ideally we should allocate resources to products in order.
+			# But for simplicity, assuming products use distinct specs OR we calculate "Potential Sets" 
+			# However, if products share components, we must decrement the pool!
 			
+			# We will calculate strictly based on remaining pool
+			
+			product_complete_count = 0
+			
+			# Check requirements for ONE product unit
+			# Map: (Profile, Length) -> Qty needed per product
+			unit_reqs = defaultdict(int)
 			for piece in spec.pieces:
-				piece_name = piece.piece_name
-				piece_qty = piece.piece_qty or 1  # How many of this piece per product
-				
-				# Find how many of this piece are complete
-				complete_pieces = 0
-				for sync in sync_data:
-					if sync.get("spec_name") == spec_name:
-						for p in sync.get("pieces", []):
-							if p.get("piece_name") == piece_name:
-								complete_pieces = p.get("complete_pieces", 0)
-								break
-				
-				# How many products can this piece support?
-				can_make = complete_pieces // piece_qty if piece_qty > 0 else 0
-				min_complete = min(min_complete, can_make)
+				piece_qty = piece.piece_qty or 0
+				for d in spec.details:
+					if d.piece_name == piece.piece_name:
+						# Key for pool
+						p_key = (d.steel_profile, d.length_mm)
+						# Qty segment per piece * pieces per product
+						needed = (d.qty_segment_per_piece or 1) * piece_qty
+						unit_reqs[p_key] += needed
+
+			# Try to build products one by one (or calculate max possible)
+			# Finding max possible is limited by the scarcest resource
+			# But we must modify the global pool if we "consume" it for this product line
+			# to avoid double counting if another item uses same resource.
 			
-			if min_complete == float('inf'):
-				min_complete = 0
+			# Optimization: Find max possible for this line given the pool
+			# Then Consume it?
 			
+			max_possible_sets = float('inf')
+			
+			for key, qty_per_product in unit_reqs.items():
+				available = global_produced_pool.get(key, 0)
+				if qty_per_product > 0:
+					sets = available // qty_per_product
+					max_possible_sets = min(max_possible_sets, sets)
+				else:
+					# No requirement for this key?
+					pass
+			
+			if max_possible_sets == float('inf'):
+				max_possible_sets = 0
+				
+			# Cap at required quantity
+			sets_made = min(max_possible_sets, product_qty)
+			
+			# Decrement pool (Commit the resources to this product line)
+			# This ensures next product in the loop doesn't use same pieces
+			for key, qty_per_product in unit_reqs.items():
+				used = sets_made * qty_per_product
+				global_produced_pool[key] = max(0, global_produced_pool.get(key, 0) - used)
+
+			# ... (sets calculation logic)
+			
+			# Snapshot the state of pieces for this product for reporting
+			product_pieces = []
+			for piece in spec.pieces:
+				piece_qty = piece.piece_qty or 0
+				p_name = piece.piece_name
+				
+				# Calculate total needed for this product line
+				total_needed_for_product = product_qty * piece_qty
+				
+				# Calculate how many "sets" of this piece we effectively found
+				# (This is approximate because a piece involves multiple segments)
+				# But for reporting: "Required: 100, Ready: 50" (based on limiting segment)
+				
+				# Re-check availability for this specific piece in current pool state?
+				# No, we already decremented pool!
+				# Effectively "Allocated" = sets_made * piece_qty
+				# But user wants to see "Why only 0 sets?" -> "Because Piece A is missing".
+				# So we should show "Potential" based on pool state BEFORE decrement?
+				
+				# Let's show: Required vs Allocated (based on complete sets)
+				# Or better: Show "Available pieces" based on current pool (BEFORE decrement would be better for diagnosis)
+				
+				# Simpler approach for now: Just show what was strictly allocated
+				allocated_qty = sets_made * piece_qty
+				
+				product_pieces.append({
+					"piece_name": p_name,
+					"required": total_needed_for_product,
+					"allocated": allocated_qty,
+					"missing": total_needed_for_product - allocated_qty
+				})
+
 			complete_products.append({
 				"item_code": item_code,
 				"item_name": frappe.db.get_value("Item", item_code, "item_name"),
 				"qty_required": product_qty,
-				"qty_complete": min_complete,
-				"remaining": max(0, product_qty - min_complete),
-				"percent": round((min_complete / product_qty * 100) if product_qty > 0 else 0, 1)
+				"qty_complete": sets_made,
+				"remaining": max(0, product_qty - sets_made),
+				"percent": round((sets_made / product_qty * 100) if product_qty > 0 else 0, 1),
+				"pieces": product_pieces # Add detailed breakdown
 			})
 		
 		# Calculate overall completion
