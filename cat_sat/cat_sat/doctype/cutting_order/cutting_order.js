@@ -173,42 +173,184 @@ window.catsat_execute_action = function (frm, row_idx, action, qty, machine_no, 
                     message: (action === "Start") ? __("Đã bắt đầu") : __("Đã dừng"),
                     indicator: 'green'
                 }, 3);
-                frm.reload_doc();
+
+                // Reload doc to get latest pattern statuses
+                frm.reload_doc().then(() => {
+                    // Also ensure items table is refreshed to show updated produced_qty and progress
+                    if (action === "Stop") {
+                        frm.refresh_field('items');
+                    }
+                });
             }
         }
     });
 };
+
+// Global handler for viewing pattern segment details
+window.catsat_view_pattern_details = function (event, row_idx) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    let frm = cur_frm;
+    if (!frm) return false;
+
+    // Find the pattern row
+    let pattern = frm.doc.optimization_result.find(r => r.idx === row_idx);
+    if (!pattern) {
+        frappe.msgprint(__("Không tìm thấy pattern"));
+        return false;
+    }
+
+    // Fetch segments from database via custom whitelisted API
+    frappe.call({
+        method: "cat_sat.cat_sat.doctype.cutting_order.cutting_order.get_pattern_segments",
+        args: {
+            pattern_name: pattern.name
+        },
+        async: false,
+        callback: function (r) {
+            let segments = r.message || [];
+            show_pattern_dialog(pattern, segments);
+        }
+    });
+
+    return false;
+};
+
+// Helper function to show the pattern details dialog
+function show_pattern_dialog(pattern, segments) {
+    let table_html = `
+        <div style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered table-sm" style="font-size: 0.9em;">
+            <thead style="position: sticky; top: 0; background: var(--card-bg);">
+                <tr>
+                    <th>Tên mảnh</th>
+                    <th>Tên đoạn</th>
+                    <th>Dài (mm)</th>
+                    <th>SL</th>
+                    <th>Lỗ dập</th>
+                    <th>Lỗ tán</th>
+                    <th>Lỗ khoan</th>
+                    <th>Uốn</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    if (segments.length === 0) {
+        table_html += `<tr><td colspan="8" class="text-center text-muted">Chưa có chi tiết segment</td></tr>`;
+    } else {
+        segments.forEach(seg => {
+            table_html += `
+                <tr>
+                    <td>${seg.piece_name || '-'}</td>
+                    <td><strong>${seg.segment_name || '-'}</strong></td>
+                    <td class="text-right">${seg.length_mm || 0}</td>
+                    <td class="text-center"><strong>${seg.quantity || 0}</strong></td>
+                    <td class="text-center">${seg.punch_holes || 0}</td>
+                    <td class="text-center">${seg.rivet_holes || 0}</td>
+                    <td class="text-center">${seg.drill_holes || 0}</td>
+                    <td>${seg.bending || '-'}</td>
+                </tr>`;
+        });
+    }
+
+    table_html += `</tbody></table></div>`;
+
+    // Show dialog
+    let d = new frappe.ui.Dialog({
+        title: `Chi tiết Pattern #${pattern.idx}: ${pattern.pattern}`,
+        size: 'large',
+        fields: [
+            {
+                fieldtype: 'HTML',
+                fieldname: 'info',
+                options: `
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-md-4"><strong>Sử dụng:</strong> ${pattern.used_length || 0} mm</div>
+                        <div class="col-md-4"><strong>Hao hụt:</strong> ${pattern.waste || 0} mm</div>
+                        <div class="col-md-4"><strong>Số cây:</strong> ${pattern.qty || 0}</div>
+                    </div>
+                `
+            },
+            {
+                fieldtype: 'HTML',
+                fieldname: 'segments_table',
+                options: table_html
+            }
+        ]
+    });
+    d.show();
+}
 
 frappe.ui.form.on("Cutting Order", {
     setup(frm) {
         register_action_formatter();
     },
 
+    onload(frm) {
+        // Fetch default trim_cut from Cutting Settings on new document
+        if (frm.is_new()) {
+            frappe.db.get_single_value("Cutting Settings", "laser_trim_cut").then(value => {
+                if (value && !frm.doc.trim_cut) {
+                    frm.set_value("trim_cut", value);
+                }
+            });
+        }
+    },
+
     refresh(frm) {
         register_action_formatter();
+
+        // Auto-sync bundle_factors from Steel Profile on refresh
+        if (frm.doc.steel_profile) {
+            frappe.db.get_value("Steel Profile", frm.doc.steel_profile, "bundle_factors", (r) => {
+                if (r && r.bundle_factors) {
+                    // Always update to match Steel Profile
+                    frm.set_value("bundle_factors", r.bundle_factors);
+                }
+            });
+        }
 
         // Add Run Optimization button
         if (!frm.is_new() && frm.doc.status !== "Completed" && frm.doc.docstatus === 0) {
             frm.add_custom_button(__("Run Optimization"), () => {
-                frappe.call({
-                    method: "cat_sat.services.cutting_optimization_service.run_optimization",
-                    args: { order_name: frm.doc.name },
-                    freeze: true,
-                    freeze_message: __("Running optimization algorithm..."),
-                    callback(r) {
-                        if (!r.exc) {
-                            frm.reload_doc();
-                            frappe.msgprint(__("Optimization completed successfully!"));
+                // Auto-save first, then run optimization
+                frm.save().then(() => {
+                    frappe.call({
+                        method: "cat_sat.services.cutting_optimization_service.run_optimization",
+                        args: { order_name: frm.doc.name },
+                        freeze: true,
+                        freeze_message: __("Running optimization algorithm..."),
+                        callback(r) {
+                            if (!r.exc) {
+                                frm.reload_doc();
+                                frappe.msgprint(__("Optimization completed successfully!"));
+                            }
                         }
-                    }
+                    });
                 });
             }).addClass("btn-primary");
         }
 
-        // Force grid refresh
+        // Force grid refresh and add row click handler
         if (frm.fields_dict.optimization_result && frm.fields_dict.optimization_result.grid) {
+            let grid = frm.fields_dict.optimization_result.grid;
+
             setTimeout(() => {
-                frm.fields_dict.optimization_result.grid.refresh();
+                grid.refresh();
+
+                // Add double-click handler to view pattern details
+                $(grid.wrapper).off('dblclick', '.grid-row').on('dblclick', '.grid-row', function (e) {
+                    // Don't trigger if clicking on buttons
+                    if ($(e.target).closest('button').length) return;
+
+                    let row_idx = $(this).data('idx');
+                    if (row_idx) {
+                        catsat_view_pattern_details(e, row_idx);
+                    }
+                });
             }, 100);
         }
     },
@@ -218,6 +360,40 @@ frappe.ui.form.on("Cutting Order", {
             frappe.db.get_value("Item", frm.doc.stock_item, ["custom_length", "length"], (r) => {
                 if (r && (r.custom_length || r.length)) {
                     frm.set_value("stock_length", r.custom_length || r.length);
+                }
+            });
+        }
+    },
+
+    steel_profile(frm) {
+        // Auto-fetch bundle_factors from Steel Profile
+        if (frm.doc.steel_profile) {
+            frappe.db.get_value("Steel Profile", frm.doc.steel_profile, "bundle_factors", (r) => {
+                if (r && r.bundle_factors) {
+                    frm.set_value("bundle_factors", r.bundle_factors);
+                } else {
+                    frm.set_value("bundle_factors", "");
+                }
+            });
+        } else {
+            frm.set_value("bundle_factors", "");
+        }
+    },
+
+    enable_bundling(frm) {
+        // Switch trim_cut based on machine mode
+        if (frm.doc.enable_bundling) {
+            // MCTĐ mode - use mctd_trim_cut
+            frappe.db.get_single_value("Cutting Settings", "mctd_trim_cut").then(value => {
+                if (value) {
+                    frm.set_value("trim_cut", value);
+                }
+            });
+        } else {
+            // Laser mode - use laser_trim_cut
+            frappe.db.get_single_value("Cutting Settings", "laser_trim_cut").then(value => {
+                if (value) {
+                    frm.set_value("trim_cut", value);
                 }
             });
         }
@@ -254,6 +430,9 @@ function register_action_formatter() {
         // Edit button
         let edit_onclick = `event.stopImmediatePropagation(); return window.catsat_edit_qty(event, ${doc.idx}, ${cut_qty});`;
 
+        // View details button
+        let view_onclick = `event.stopImmediatePropagation(); return window.catsat_view_pattern_details(event, ${doc.idx});`;
+
         return `<div style="display:flex; gap:3px;">
                     <button class="btn ${btn_class} btn-xs" 
                             onclick="${onclick}"
@@ -261,6 +440,12 @@ function register_action_formatter() {
                             ${btn_disabled}
                             style="flex:1; font-weight:bold; padding: 2px 6px;">
                         ${btn_text}
+                    </button>
+                    <button class="btn btn-info btn-xs" 
+                            onclick="${view_onclick}"
+                            onmousedown="event.stopImmediatePropagation();"
+                            style="padding: 2px 6px;" title="Xem chi tiết">
+                        👁
                     </button>
                     <button class="btn btn-default btn-xs" 
                             onclick="${edit_onclick}"

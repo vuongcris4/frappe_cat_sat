@@ -1,0 +1,82 @@
+{
+    "doctype": "DocType",
+    "name": "Customer SKU Mapping",
+    "module": "Cat Sat",
+    "autoname": "field:customer_sku",
+    "title_field": "customer_sku",
+    "allow_rename": 1,
+    "field_order": [
+        "customer_sku",
+        "barcode",
+        "column_break_1",
+        "customer",
+        "item",
+        "section_break_1",
+        "description"
+    ],
+    "fields": [
+        {
+            "fieldname": "customer_sku",
+            "fieldtype": "Data",
+            "label": "Mã SKU của khách",
+            "reqd": 1,
+            "unique": 1,
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "description": "VD: HW73186WH-12"
+        },
+        {
+            "fieldname": "barcode",
+            "fieldtype": "Data",
+            "label": "Barcode",
+            "description": "VD: 01445368"
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "options": "Customer",
+            "label": "Khách hàng",
+            "reqd": 1,
+            "in_list_view": 1,
+            "in_standard_filter": 1
+        },
+        {
+            "fieldname": "item",
+            "fieldtype": "Link",
+            "options": "Item",
+            "label": "Mã nhà máy (Item)",
+            "reqd": 1,
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "description": "VD: J55.T4"
+        },
+        {
+            "fieldname": "section_break_1",
+            "fieldtype": "Section Break",
+            "label": "Thông tin thêm",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Mô tả"
+        }
+    ],
+    "permissions": [
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "delete": 1,
+            "export": 1,
+            "import": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

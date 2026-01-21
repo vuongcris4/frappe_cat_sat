@@ -5,26 +5,46 @@
     "editable_grid": 1,
     "engine": "InnoDB",
     "field_order": [
+        "piece_code",
+        "piece_name",
         "segment_name",
         "length_mm",
         "qty",
-        "priority",
+        "cut_by",
         "produced_qty",
+        "progress_percent",
+        "priority",
+        "punch_holes",
+        "rivet_holes",
+        "drill_holes",
+        "bending",
         "note"
     ],
     "fields": [
         {
-            "fieldname": "length_mm",
-            "fieldtype": "Int",
+            "fieldname": "piece_code",
+            "fieldtype": "Data",
             "in_list_view": 1,
-            "label": "Chiều dài (mm)",
-            "reqd": 1
+            "label": "Mã mảnh"
+        },
+        {
+            "fieldname": "piece_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Tên mảnh"
         },
         {
             "fieldname": "segment_name",
             "fieldtype": "Data",
             "in_list_view": 1,
             "label": "Tên đoạn"
+        },
+        {
+            "fieldname": "length_mm",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Chiều dài (mm)",
+            "reqd": 1
         },
         {
             "fieldname": "qty",
@@ -34,11 +54,28 @@
             "reqd": 1
         },
         {
+            "default": "Laser",
+            "fieldname": "cut_by",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Cắt bằng",
+            "options": "Laser\nMCTĐ",
+            "description": "Chọn máy cắt cho đoạn này"
+        },
+        {
             "fieldname": "produced_qty",
             "fieldtype": "Int",
             "in_list_view": 1,
             "label": "Đã có",
             "read_only": 1
+        },
+        {
+            "fieldname": "progress_percent",
+            "fieldtype": "Percent",
+            "in_list_view": 1,
+            "label": "Tiến độ",
+            "read_only": 1,
+            "precision": 1
         },
         {
             "default": "0",
@@ -48,15 +85,38 @@
             "label": "Ưu tiên"
         },
         {
+            "default": "0",
+            "fieldname": "punch_holes",
+            "fieldtype": "Int",
+            "label": "Lỗ dập"
+        },
+        {
+            "default": "0",
+            "fieldname": "rivet_holes",
+            "fieldtype": "Int",
+            "label": "Lỗ tán"
+        },
+        {
+            "default": "0",
+            "fieldname": "drill_holes",
+            "fieldtype": "Int",
+            "label": "Lỗ khoan"
+        },
+        {
+            "fieldname": "bending",
+            "fieldtype": "Select",
+            "label": "Uốn",
+            "options": "\nKhông\nUốn 1 đầu\nUốn 2 đầu\nUốn cong"
+        },
+        {
             "fieldname": "note",
             "fieldtype": "Data",
-            "label": "Ghi chú",
-            "in_list_view": 1
+            "label": "Ghi chú"
         }
     ],
     "istable": 1,
     "links": [],
-    "modified": "2026-01-11 10:00:00.000000",
+    "modified": "2026-01-18 23:20:00.000000",
     "modified_by": "Administrator",
     "module": "Cat Sat",
     "name": "Cutting Order Input",

@@ -32,12 +32,22 @@
   },
   {
     "doctype": "Custom Field",
+    "name": "Item-piece_name",
+    "dt": "Item",
+    "fieldname": "piece_name",
+    "label": "Tên mảnh",
+    "fieldtype": "Data",
+    "insert_after": "cutting_specification",
+    "description": "Tên ngắn gọn của mảnh (VD: Khung tựa đôi, Tay trái ghế đơn...)"
+  },
+  {
+    "doctype": "Custom Field",
     "name": "Item-section_break_iea",
     "dt": "Item",
     "fieldname": "section_break_iea",
     "label": "Thông tin IEA",
     "fieldtype": "Section Break",
-    "insert_after": "cutting_specification",
+    "insert_after": "piece_name",
     "collapsible": 1
   },
   {

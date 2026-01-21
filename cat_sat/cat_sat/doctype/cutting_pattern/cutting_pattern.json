@@ -5,7 +5,10 @@
     "editable_grid": 1,
     "engine": "InnoDB",
     "field_order": [
+        "machine",
         "pattern",
+        "segments_summary",
+        "segments",
         "used_length",
         "waste",
         "qty",
@@ -17,10 +20,19 @@
     ],
     "fields": [
         {
+            "default": "Laser",
+            "fieldname": "machine",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Máy",
+            "options": "Laser\nMCTĐ",
+            "read_only": 1
+        },
+        {
             "fieldname": "action_btn",
             "fieldtype": "Data",
             "in_list_view": 1,
-            "label": "Thao t\u00e1c",
+            "label": "Thao tác",
             "read_only": 1
         },
         {
@@ -29,37 +41,52 @@
             "fieldname": "status",
             "fieldtype": "Select",
             "in_list_view": 1,
-            "label": "Tr\u1ea1ng th\u00e1i",
+            "label": "Trạng thái",
             "options": "Pending\nIn Progress\nCompleted",
             "read_only": 1
         },
         {
             "fieldname": "pattern",
-            "fieldtype": "Data",
+            "fieldtype": "Small Text",
             "in_list_view": 1,
-            "label": "M\u1eabu c\u1eaft (Pattern)",
+            "label": "Mẫu cắt (Pattern)",
             "read_only": 1,
             "reqd": 1
+        },
+        {
+            "fieldname": "segments_summary",
+            "fieldtype": "Small Text",
+            "in_list_view": 1,
+            "label": "Đoạn sắt",
+            "read_only": 1,
+            "description": "Danh sách các đoạn sắt trong pattern này"
+        },
+        {
+            "fieldname": "segments",
+            "fieldtype": "Table",
+            "label": "Chi tiết đoạn",
+            "options": "Pattern Segment",
+            "read_only": 1
         },
         {
             "fieldname": "used_length",
             "fieldtype": "Int",
             "in_list_view": 1,
-            "label": "S\u1eed d\u1ee5ng (mm)",
+            "label": "Sử dụng (mm)",
             "read_only": 1
         },
         {
             "fieldname": "waste",
             "fieldtype": "Int",
             "in_list_view": 1,
-            "label": "Hao h\u1ee5t (mm)",
+            "label": "Hao hụt (mm)",
             "read_only": 1
         },
         {
             "fieldname": "qty",
             "fieldtype": "Int",
             "in_list_view": 1,
-            "label": "SL Y\u00eau c\u1ea7u",
+            "label": "SL Yêu cầu",
             "read_only": 1,
             "reqd": 1
         },
@@ -69,7 +96,7 @@
             "fieldname": "cut_qty",
             "fieldtype": "Int",
             "in_list_view": 1,
-            "label": "SL \u0110\u00e3 c\u1eaft",
+            "label": "SL Đã cắt",
             "read_only": 1
         },
         {

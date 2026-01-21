@@ -146,9 +146,13 @@ class CuttingOrder(Document):
 			min_complete = float('inf')
 			
 			for detail in spec.details:
-				if detail.piece_name == piece_name:
+				# Handle "piece_code - piece_name" format
+				detail_piece = (detail.piece_name or "").strip()
+				if " - " in detail_piece:
+					detail_piece = detail_piece.split(" - ", 1)[1]
+				if detail_piece == piece_name:
 					length = cint(detail.length_mm)
-					qty_per_piece = detail.qty_segment_per_piece or 1
+					qty_per_piece = getattr(detail, 'qty_per_unit', None) or getattr(detail, 'qty_segment_per_piece', 1) or 1
 					produced = produced_map.get(length, 0)
 					required_total = required_map.get(length, 0)
 					
@@ -318,21 +322,21 @@ class CuttingOrder(Document):
 		total_made_cuts = 0
 		total_duration = 0
 
-		# 2. Iterate patterns
+		# 2. Iterate patterns and read from Pattern Segment child table
 		for row in self.optimization_result:
 			total_duration += flt(row.total_duration)
-			if row.cut_qty > 0 and row.pattern:
-				parts = row.pattern.split(" + ")
-				for part in parts:
-					if "x" in part:
-						try:
-							c, l = part.split("x")
-							count = int(c)
-							# Handle float lengths like "1162.2" 
-							length = flt(l)
-							produced_map[length] += count * row.cut_qty
-						except ValueError:
-							pass
+			if row.cut_qty > 0:
+				# Get segments from Pattern Segment child table
+				segments = frappe.db.get_all(
+					"Pattern Segment",
+					filters={"parent": row.name, "parenttype": "Cutting Pattern"},
+					fields=["length_mm", "quantity"]
+				)
+				for seg in segments:
+					length = flt(seg.length_mm)
+					count = cint(seg.quantity)
+					if length > 0 and count > 0:
+						produced_map[length] += count * row.cut_qty
 
 		# 3. Update Order Items (FIFO Distribution)
 		# We use a copy to track remaining available cuts as we distribute them
@@ -347,6 +351,12 @@ class CuttingOrder(Document):
 			# Assign min(required, available) to this specific item row
 			allocated = min(required, available)
 			item.produced_qty = allocated
+			
+			# Calculate progress percentage
+			if item.qty > 0:
+				item.progress_percent = (item.produced_qty / item.qty) * 100.0
+			else:
+				item.progress_percent = 0
 			
 			# Decrement available count for next items of same length
 			if key in remaining_produced:
@@ -440,3 +450,25 @@ def update_cut_qty_wrapper(order_name, row_idx, new_qty):
 	
 	return {"success": True, "old_qty": old_qty, "new_qty": new_qty}
 
+
+@frappe.whitelist()
+def get_pattern_segments(pattern_name):
+	"""Get segments for a Cutting Pattern (child table row)
+	
+	Since Pattern Segment is a child table (istable=1), 
+	it has no permissions. This API fetches segments for display.
+	"""
+	if not pattern_name:
+		return []
+	
+	segments = frappe.db.sql("""
+		SELECT 
+			piece_name, segment_name, steel_profile, length_mm, 
+			quantity, punch_holes, rivet_holes, drill_holes, bending, note,
+			source_spec, source_item
+		FROM `tabPattern Segment`
+		WHERE parent = %s AND parenttype = 'Cutting Pattern'
+		ORDER BY idx ASC
+	""", pattern_name, as_dict=True)
+	
+	return segments

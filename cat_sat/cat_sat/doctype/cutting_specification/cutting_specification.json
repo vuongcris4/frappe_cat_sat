@@ -1,79 +1,91 @@
 {
- "actions": [],
- "allow_import": 1,
- "autoname": "CS-.#####",
- "creation": "2026-01-09 08:35:07.400983",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "section_break_general",
-  "spec_name",
-  "section_break_pieces",
-  "pieces",
-  "section_break_details",
-  "details"
- ],
- "fields": [
-  {
-   "fieldname": "section_break_general",
-   "fieldtype": "Section Break",
-   "label": "Th\u00f4ng tin chung"
-  },
-  {
-   "fieldname": "spec_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "T\u00ean \u0111\u1ecbnh m\u1ee9c",
-   "reqd": 1
-  },
-  {
-   "fieldname": "section_break_pieces",
-   "fieldtype": "Section Break",
-   "label": "Danh s\u00e1ch m\u1ea3nh"
-  },
-  {
-   "fieldname": "pieces",
-   "fieldtype": "Table",
-   "label": "M\u1ea3nh",
-   "options": "Cutting Piece"
-  },
-  {
-   "fieldname": "section_break_details",
-   "fieldtype": "Section Break",
-   "label": "Chi ti\u1ebft s\u1eaft"
-  },
-  {
-   "fieldname": "details",
-   "fieldtype": "Table",
-   "label": "Chi ti\u1ebft s\u1eaft",
-   "options": "Cutting Detail"
-  }
- ],
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-01-10 05:21:52.571062",
- "modified_by": "Administrator",
- "module": "Cat Sat",
- "name": "Cutting Specification",
- "naming_rule": "Expression",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  }
- ],
- "row_format": "Dynamic",
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [],
- "title_field": "spec_name"
+    "actions": [],
+    "allow_import": 1,
+    "autoname": "CS-.#####",
+    "creation": "2026-01-09 08:35:07.400983",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "section_break_general",
+        "item_template",
+        "customer",
+        "column_break_item",
+        "spec_name",
+        "section_break_details",
+        "details"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_break_general",
+            "fieldtype": "Section Break",
+            "label": "Thông tin chung"
+        },
+        {
+            "fieldname": "item_template",
+            "fieldtype": "Link",
+            "options": "Item",
+            "label": "Sản phẩm",
+            "reqd": 1,
+            "in_list_view": 1,
+            "description": "Chọn sản phẩm cần định mức cắt sắt"
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "options": "Customer",
+            "label": "Khách hàng",
+            "in_list_view": 1,
+            "description": "Để trống = định mức chung. Chọn khách = định mức riêng cho khách"
+        },
+        {
+            "fieldname": "column_break_item",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "spec_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Tên định mức",
+            "reqd": 1
+        },
+        {
+            "fieldname": "section_break_details",
+            "fieldtype": "Section Break",
+            "label": "Chi tiết đoạn sắt"
+        },
+        {
+            "fieldname": "details",
+            "fieldtype": "Table",
+            "label": "Chi tiết sắt",
+            "options": "Cutting Detail",
+            "description": "Nhập tất cả đoạn sắt. Dùng piece_name để nhóm theo mảnh hàn."
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-01-19 09:55:00.000000",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Specification",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "title_field": "spec_name"
 }

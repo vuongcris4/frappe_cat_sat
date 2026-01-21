@@ -7,6 +7,11 @@
     "field_order": [
         "section_waste",
         "max_waste_percent",
+        "section_mctd",
+        "mctd_trim_cut",
+        "mctd_max_segments_per_pattern",
+        "section_laser",
+        "laser_trim_cut",
         "section_machine",
         "default_cutting_machine"
     ],
@@ -24,9 +29,40 @@
             "description": "Phần trăm hao hụt tối đa cho phép khi tối ưu cắt"
         },
         {
+            "fieldname": "section_mctd",
+            "fieldtype": "Section Break",
+            "label": "Máy cắt tự động (MCTĐ)"
+        },
+        {
+            "default": "15",
+            "fieldname": "mctd_trim_cut",
+            "fieldtype": "Float",
+            "label": "Tề đầu MCTĐ (mm)",
+            "description": "Chiều dài tề đầu sắt cho máy cắt tự động. Trừ vào mỗi pattern trước khi tính."
+        },
+        {
+            "default": "5",
+            "fieldname": "mctd_max_segments_per_pattern",
+            "fieldtype": "Int",
+            "label": "Số đoạn tối đa / pattern MCTĐ",
+            "description": "Giới hạn số loại đoạn khác nhau trong một pattern MCTĐ"
+        },
+        {
+            "fieldname": "section_laser",
+            "fieldtype": "Section Break",
+            "label": "Máy cắt Laser"
+        },
+        {
+            "default": "10",
+            "fieldname": "laser_trim_cut",
+            "fieldtype": "Float",
+            "label": "Tề đầu Laser (mm)",
+            "description": "Chiều dài tề đầu sắt cho máy laser. Trừ vào mỗi pattern trước khi tính."
+        },
+        {
             "fieldname": "section_machine",
             "fieldtype": "Section Break",
-            "label": "Máy cắt"
+            "label": "Máy cắt mặc định"
         },
         {
             "fieldname": "default_cutting_machine",
@@ -38,7 +74,7 @@
     ],
     "index_web_pages_for_search": 1,
     "links": [],
-    "modified": "2026-01-13 23:20:00.000000",
+    "modified": "2026-01-15 09:30:00.000000",
     "modified_by": "Administrator",
     "module": "Cat Sat",
     "name": "Cutting Settings",

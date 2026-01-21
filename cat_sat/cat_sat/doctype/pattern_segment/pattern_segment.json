@@ -1,0 +1,116 @@
+{
+    "actions": [],
+    "creation": "2026-01-14 23:30:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "piece_name",
+        "segment_name",
+        "steel_profile",
+        "length_mm",
+        "quantity",
+        "punch_holes",
+        "rivet_holes",
+        "bending",
+        "note",
+        "section_source",
+        "source_spec",
+        "source_item"
+    ],
+    "fields": [
+        {
+            "fieldname": "piece_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Tên mảnh"
+        },
+        {
+            "fieldname": "segment_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Tên đoạn",
+            "reqd": 1
+        },
+        {
+            "fieldname": "steel_profile",
+            "fieldtype": "Data",
+            "label": "Loại sắt"
+        },
+        {
+            "fieldname": "length_mm",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Chiều dài (mm)",
+            "reqd": 1
+        },
+        {
+            "fieldname": "quantity",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Số lượng",
+            "reqd": 1
+        },
+        {
+            "fieldname": "punch_holes",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Lỗ dập",
+            "default": "0"
+        },
+        {
+            "fieldname": "rivet_holes",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Lỗ tán",
+            "default": "0"
+        },
+        {
+            "fieldname": "drill_holes",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Lỗ khoan",
+            "default": "0"
+        },
+        {
+            "fieldname": "bending",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Uốn"
+        },
+        {
+            "fieldname": "note",
+            "fieldtype": "Data",
+            "label": "Ghi chú"
+        },
+        {
+            "fieldname": "section_source",
+            "fieldtype": "Section Break",
+            "label": "Nguồn gốc",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "source_spec",
+            "fieldtype": "Data",
+            "label": "Định mức gốc",
+            "read_only": 1
+        },
+        {
+            "fieldname": "source_item",
+            "fieldtype": "Data",
+            "label": "Thành phẩm",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2026-01-15 09:16:00.000000",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Pattern Segment",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

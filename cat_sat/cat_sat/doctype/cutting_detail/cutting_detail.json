@@ -5,25 +5,27 @@
     "name": "Cutting Detail",
     "module": "Cat Sat",
     "field_order": [
-        "piece_name",
+        "bom_item",
         "steel_profile",
         "segment_name",
         "length_mm",
-        "qty_segment_per_piece",
+        "qty_per_unit",
         "total_qty",
         "punch_hole_qty",
         "rivet_hole_qty",
+        "drill_hole_qty",
         "bend_type",
         "note"
     ],
     "fields": [
         {
-            "fieldname": "piece_name",
-            "fieldtype": "Select",
-            "label": "Tên mảnh",
-            "in_list_view": 1,
+            "fieldname": "bom_item",
+            "fieldtype": "Link",
+            "options": "Item",
+            "label": "Phôi sơn",
             "reqd": 1,
-            "options": ""
+            "in_list_view": 1,
+            "description": "Link tới Item PHOI trong BOM đa cấp"
         },
         {
             "fieldname": "steel_profile",
@@ -37,7 +39,9 @@
             "fieldname": "segment_name",
             "fieldtype": "Data",
             "label": "Tên đoạn sắt",
-            "reqd": 1
+            "reqd": 1,
+            "in_list_view": 1,
+            "description": "Mô tả đoạn sắt (VD: H10-20 uốn, V15 2 tán...)"
         },
         {
             "fieldname": "length_mm",
@@ -47,12 +51,13 @@
             "in_list_view": 1
         },
         {
-            "fieldname": "qty_segment_per_piece",
+            "fieldname": "qty_per_unit",
             "fieldtype": "Int",
-            "label": "Số đoạn / mảnh",
-            "default": 1,
+            "label": "SL / sản phẩm",
+            "default": "1",
             "reqd": 1,
-            "in_list_view": 1
+            "in_list_view": 1,
+            "description": "Số đoạn cần cho 1 sản phẩm hoàn chỉnh"
         },
         {
             "fieldname": "total_qty",
@@ -64,23 +69,26 @@
             "fieldname": "punch_hole_qty",
             "fieldtype": "Int",
             "label": "Số lỗ dập",
-            "default": 0,
-            "in_list_view": 1
+            "default": "0"
         },
         {
             "fieldname": "rivet_hole_qty",
             "fieldtype": "Int",
             "label": "Số lỗ tán",
-            "default": 0,
-            "in_list_view": 1
+            "default": "0"
+        },
+        {
+            "fieldname": "drill_hole_qty",
+            "fieldtype": "Int",
+            "label": "Số lỗ khoan",
+            "default": "0"
         },
         {
             "fieldname": "bend_type",
             "fieldtype": "Select",
             "label": "Uốn",
             "options": "Không\nUốn 1 đầu\nUốn 2 đầu\nUốn cong",
-            "default": "Không",
-            "in_list_view": 1
+            "default": "Không"
         },
         {
             "fieldname": "note",

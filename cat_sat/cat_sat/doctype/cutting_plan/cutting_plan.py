@@ -75,7 +75,9 @@ class CuttingPlan(Document):
 			item_code = plan_item.item_code
 			product_qty = plan_item.product_qty
 			
-			spec_name = frappe.db.get_value("Item", item_code, "cutting_specification")
+			# Use factory_code fallback for SKU items
+			from cat_sat.services.cutting_plan_service import get_cutting_spec_for_item
+			spec_name = get_cutting_spec_for_item(item_code)
 			if not spec_name:
 				continue
 			
@@ -91,18 +93,33 @@ class CuttingPlan(Document):
 			
 			product_complete_count = 0
 			
+			# Build piece requirements from details (grouped by piece_name)
+			# Each unique piece_name is like a "piece type"
+			piece_info = {}  # piece_name -> {"qty": piece_qty, "segments": [(profile, length, qty_per_unit), ...]}
+			for d in spec.details:
+				p_name = (d.piece_name or "").strip()
+				if not p_name:
+					continue
+				if p_name not in piece_info:
+					piece_info[p_name] = {
+						"qty": d.piece_qty or 1,
+						"segments": []
+					}
+				piece_info[p_name]["segments"].append({
+					"profile": d.steel_profile,
+					"length": d.length_mm,
+					"qty_per_unit": getattr(d, 'qty_per_unit', 1) or 1
+				})
+			
 			# Check requirements for ONE product unit
 			# Map: (Profile, Length) -> Qty needed per product
 			unit_reqs = defaultdict(int)
-			for piece in spec.pieces:
-				piece_qty = piece.piece_qty or 0
-				for d in spec.details:
-					if d.piece_name == piece.piece_name:
-						# Key for pool
-						p_key = (d.steel_profile, d.length_mm)
-						# Qty segment per piece * pieces per product
-						needed = (d.qty_segment_per_piece or 1) * piece_qty
-						unit_reqs[p_key] += needed
+			for p_name, pdata in piece_info.items():
+				piece_qty = pdata["qty"]
+				for seg in pdata["segments"]:
+					p_key = (seg["profile"], seg["length"])
+					needed = seg["qty_per_unit"] * piece_qty
+					unit_reqs[p_key] += needed
 
 			# Try to build products one by one (or calculate max possible)
 			# Finding max possible is limited by the scarcest resource
@@ -135,31 +152,15 @@ class CuttingPlan(Document):
 				used = sets_made * qty_per_product
 				global_produced_pool[key] = max(0, global_produced_pool.get(key, 0) - used)
 
-			# ... (sets calculation logic)
-			
 			# Snapshot the state of pieces for this product for reporting
 			product_pieces = []
-			for piece in spec.pieces:
-				piece_qty = piece.piece_qty or 0
-				p_name = piece.piece_name
+			for p_name, pdata in piece_info.items():
+				piece_qty = pdata["qty"]
 				
 				# Calculate total needed for this product line
 				total_needed_for_product = product_qty * piece_qty
 				
-				# Calculate how many "sets" of this piece we effectively found
-				# (This is approximate because a piece involves multiple segments)
-				# But for reporting: "Required: 100, Ready: 50" (based on limiting segment)
-				
-				# Re-check availability for this specific piece in current pool state?
-				# No, we already decremented pool!
 				# Effectively "Allocated" = sets_made * piece_qty
-				# But user wants to see "Why only 0 sets?" -> "Because Piece A is missing".
-				# So we should show "Potential" based on pool state BEFORE decrement?
-				
-				# Let's show: Required vs Allocated (based on complete sets)
-				# Or better: Show "Available pieces" based on current pool (BEFORE decrement would be better for diagnosis)
-				
-				# Simpler approach for now: Just show what was strictly allocated
 				allocated_qty = sets_made * piece_qty
 				
 				product_pieces.append({
@@ -198,11 +199,15 @@ class CuttingPlan(Document):
 				"percent": round((data["produced"] / data["required"] * 100) if data["required"] > 0 else 0, 1)
 			})
 		
+		# Calculate Time Statistics from Cutting Production Log
+		time_stats = self.calculate_time_statistics()
+		
 		return {
 			"orders": orders,
 			"segments": segments_list,
 			"sync_data": sync_data,
 			"complete_products": complete_products,
+			"time_statistics": time_stats,
 			"summary": {
 				"total_orders": len(orders),
 				"total_required": total_required,
@@ -210,3 +215,139 @@ class CuttingPlan(Document):
 				"overall_percent": round(overall_percent, 1)
 			}
 		}
+	
+	def calculate_time_statistics(self):
+		"""
+		Calculate time statistics from Cutting Production Log entries.
+		Returns detailed breakdown for dashboard display.
+		"""
+		from collections import defaultdict
+		
+		# Get all production logs for this plan
+		logs = frappe.get_all(
+			"Cutting Production Log",
+			filters={"cutting_plan": self.name, "status": "Done"},
+			fields=["cutting_order", "steel_profile", "pattern", "pattern_idx",
+					"start_time", "end_time", "duration_seconds", "qty_cut",
+					"machine_no", "laser_speed", "issue_note"]
+		)
+		
+		if not logs:
+			return None
+		
+		# Aggregate statistics
+		total_duration = 0
+		total_qty_cut = 0
+		by_steel_profile = defaultdict(lambda: {"duration": 0, "qty": 0, "count": 0})
+		by_machine = defaultdict(lambda: {"duration": 0, "qty": 0, "count": 0, "issues": 0})
+		issues_list = []
+		
+		first_start = None
+		last_end = None
+		
+		for log in logs:
+			duration = flt(log.duration_seconds) or 0
+			qty = cint(log.qty_cut) or 0
+			
+			total_duration += duration
+			total_qty_cut += qty
+			
+			# By steel profile
+			profile = log.steel_profile or "Unknown"
+			by_steel_profile[profile]["duration"] += duration
+			by_steel_profile[profile]["qty"] += qty
+			by_steel_profile[profile]["count"] += 1
+			
+			# By machine
+			machine = log.machine_no or "N/A"
+			by_machine[machine]["duration"] += duration
+			by_machine[machine]["qty"] += qty
+			by_machine[machine]["count"] += 1
+			if log.issue_note:
+				by_machine[machine]["issues"] += 1
+				issues_list.append({
+					"machine": machine,
+					"pattern": log.pattern,
+					"note": log.issue_note
+				})
+			
+			# Track first/last times
+			if log.start_time:
+				start = frappe.utils.get_datetime(log.start_time)
+				if first_start is None or start < first_start:
+					first_start = start
+			if log.end_time:
+				end = frappe.utils.get_datetime(log.end_time)
+				if last_end is None or end > last_end:
+					last_end = end
+		
+		# Format durations
+		def format_duration(seconds):
+			if seconds < 60:
+				return f"{int(seconds)}s"
+			elif seconds < 3600:
+				return f"{int(seconds // 60)}m {int(seconds % 60)}s"
+			else:
+				hours = int(seconds // 3600)
+				mins = int((seconds % 3600) // 60)
+				return f"{hours}h {mins}m"
+		
+		# By steel profile stats
+		profile_stats = []
+		for profile, data in sorted(by_steel_profile.items()):
+			avg_per_bar = data["duration"] / data["qty"] if data["qty"] > 0 else 0
+			profile_stats.append({
+				"profile": profile,
+				"duration": format_duration(data["duration"]),
+				"duration_seconds": data["duration"],
+				"qty": data["qty"],
+				"count": data["count"],
+				"avg_per_bar": format_duration(avg_per_bar),
+				"avg_seconds": avg_per_bar
+			})
+		
+		# By machine stats
+		machine_stats = []
+		for machine, data in sorted(by_machine.items()):
+			avg_per_bar = data["duration"] / data["qty"] if data["qty"] > 0 else 0
+			machine_stats.append({
+				"machine": machine,
+				"duration": format_duration(data["duration"]),
+				"duration_seconds": data["duration"],
+				"qty": data["qty"],
+				"issues": data["issues"],
+				"avg_per_bar": format_duration(avg_per_bar),
+				"avg_seconds": avg_per_bar
+			})
+		
+		# Estimate remaining time
+		remaining_qty = sum(s["remaining"] for s in self.get_segments_progress()) if hasattr(self, 'get_segments_progress') else 0
+		avg_time_per_segment = total_duration / total_qty_cut if total_qty_cut > 0 else 0
+		estimated_remaining = remaining_qty * avg_time_per_segment
+		
+		# Calculate vs target  
+		target_status = None
+		if self.target_date and last_end:
+			target_dt = frappe.utils.get_datetime(self.target_date)
+			if last_end < target_dt:
+				diff = (target_dt - last_end).days
+				target_status = {"status": "ahead", "days": diff}
+			else:
+				diff = (last_end - target_dt).days
+				target_status = {"status": "behind", "days": diff}
+		
+		return {
+			"total_duration": format_duration(total_duration),
+			"total_duration_seconds": total_duration,
+			"total_qty_cut": total_qty_cut,
+			"log_count": len(logs),
+			"avg_per_bar": format_duration(total_duration / total_qty_cut if total_qty_cut > 0 else 0),
+			"first_start": str(first_start)[:16] if first_start else None,
+			"last_end": str(last_end)[:16] if last_end else None,
+			"estimated_remaining": format_duration(estimated_remaining),
+			"by_profile": profile_stats,
+			"by_machine": machine_stats,
+			"issues": issues_list[:10],  # Limit to 10 most recent
+			"target_status": target_status
+		}
+

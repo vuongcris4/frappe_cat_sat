@@ -6,9 +6,26 @@
   "editable_grid": 1,
   "engine": "InnoDB",
   "field_order": [
-    "cutting_requirement"
+    "piece_code",
+    "piece_name",
+    "steel_profile",
+    "segment_name",
+    "length_mm",
+    "qty"
   ],
   "fields": [
+    {
+      "fieldname": "piece_code",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Mã mảnh"
+    },
+    {
+      "fieldname": "piece_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Tên mảnh"
+    },
     {
       "fieldname": "steel_profile",
       "fieldtype": "Link",
@@ -42,7 +59,7 @@
   "index_web_pages_for_search": 1,
   "istable": 1,
   "links": [],
-  "modified": "2026-01-08 19:58:07.586541",
+  "modified": "2026-01-18 23:20:00.000000",
   "modified_by": "Administrator",
   "module": "Cat Sat",
   "name": "Cutting Plan Requirement",

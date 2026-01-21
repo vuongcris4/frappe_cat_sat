@@ -13,9 +13,10 @@
         "column_break_1",
         "stock_length",
         "trim_cut",
-        "blade_width",
+        "laser_blade_width",
         "section_break_mctd",
         "enable_bundling",
+        "mctd_blade_width",
         "bundle_factors",
         "manual_cut_limit",
         "max_over_production",
@@ -97,17 +98,17 @@
             "reqd": 1
         },
         {
-            "default": "1",
-            "fieldname": "blade_width",
-            "fieldtype": "Float",
-            "label": "Mạch cắt (mm)",
-            "reqd": 1,
-            "description": "Laser: 1mm, MCTĐ: 2.5-3mm"
+            "default": "1.0",
+            "fieldname": "laser_blade_width",
+            "fieldtype": "Data",
+            "label": "Mạch cắt Laser (mm)",
+            "read_only": 1,
+            "description": "Laser luôn dùng mạch cắt 1mm"
         },
         {
             "fieldname": "section_break_mctd",
             "fieldtype": "Section Break",
-            "label": "Cài đặt MCTĐ (Máy Cắt Theo Đợt)",
+            "label": "Cài đặt MCTĐ",
             "collapsible": 1
         },
         {
@@ -117,11 +118,20 @@
             "label": "Bật chế độ cắt theo bó"
         },
         {
-            "default": "14 16 18 20",
+            "default": "2.5",
+            "fieldname": "mctd_blade_width",
+            "fieldtype": "Select",
+            "label": "Mạch cắt MCTĐ (mm)",
+            "options": "2.5\n3.0",
+            "depends_on": "eval:doc.enable_bundling",
+            "description": "Lưỡi cắt cho các đoạn MCTĐ"
+        },
+        {
             "fieldname": "bundle_factors",
             "fieldtype": "Data",
-            "label": "Hệ số bó (cách nhau bằng dấu cách)",
-            "description": "Ví dụ: 14 16 18 20",
+            "label": "Hệ số bó (từ Loại sắt)",
+            "description": "Tự động lấy từ Steel Profile khi Run Optimization",
+            "read_only": 1,
             "depends_on": "eval:doc.enable_bundling"
         },
         {

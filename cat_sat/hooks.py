@@ -48,12 +48,14 @@ fixtures = ["Custom Field"]
 
 # include js in doctype views
 
-# doctype_js = {
-#     "Cutting Order": [
-#         "public/js/cutting_pattern.js",
-#         "public/js/pattern_actions.js"
-#     ]
-# }
+doctype_js = {
+    "Item": "public/js/item_custom.js",
+    "Production Plan": "public/js/production_plan.js",
+    # "Cutting Order": [
+    #     "public/js/cutting_pattern.js",
+    #     "public/js/pattern_actions.js"
+    # ]
+}
 
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"P-Ggb2Ro9a\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Cat Sat</b></span>\",\"col\":12}},{\"id\":\"vFucNSSPST\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Plan\",\"col\":3}},{\"id\":\"5uUEu4HRb4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Order\",\"col\":3}},{\"id\":\"fUo64mDsgO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Steel Profile\",\"col\":3}},{\"id\":\"j9aDg2z7iv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"4VguTkF-64\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Specification\",\"col\":3}},{\"id\":\"3sm_Xp2Evn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Stock Entry\",\"col\":3}},{\"id\":\"W3IunJJhO7\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"9IwFm2XRjc\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Planning &amp; Orders</span>\",\"col\":12}},{\"id\":\"sTVzC4LaXQ\",\"type\":\"card\",\"data\":{\"card_name\":\"K\u1ebf Ho\u1ea1ch & L\u1ec7nh C\u1eaft\",\"col\":4}},{\"id\":\"Jjc4JZQMUb\",\"type\":\"card\",\"data\":{\"card_name\":\"\u0110\u1ecbnh M\u1ee9c & C\u00e0i \u0110\u1eb7t\",\"col\":4}},{\"id\":\"97z_Rwvu1g\",\"type\":\"card\",\"data\":{\"card_name\":\"Portal C\u00f4ng Nh\u00e2n\",\"col\":4}}]",
+ "content": "[{\"id\": \"P-Ggb2Ro9a\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Cat Sat</b></span>\", \"col\": 12}}, {\"id\": \"DashAnalyt\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cat Sat Analytics\", \"col\": 3}}, {\"id\": \"vFucNSSPST\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cutting Plan\", \"col\": 3}}, {\"id\": \"5uUEu4HRb4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cutting Order\", \"col\": 3}}, {\"id\": \"fUo64mDsgO\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Steel Profile\", \"col\": 3}}, {\"id\": \"j9aDg2z7iv\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Item\", \"col\": 3}}, {\"id\": \"4VguTkF-64\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cutting Specification\", \"col\": 3}}, {\"id\": \"3sm_Xp2Evn\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Stock Entry\", \"col\": 3}}, {\"id\": \"aOwVEh_wey\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Product Bundle\", \"col\": 3}}, {\"id\": \"9IwFm2XRjc\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Planning &amp; Orders</span>\", \"col\": 12}}, {\"id\": \"sTVzC4LaXQ\", \"type\": \"card\", \"data\": {\"card_name\": \"K\\u1ebf Ho\\u1ea1ch & L\\u1ec7nh C\\u1eaft\", \"col\": 4}}, {\"id\": \"Jjc4JZQMUb\", \"type\": \"card\", \"data\": {\"card_name\": \"\\u0110\\u1ecbnh M\\u1ee9c & C\\u00e0i \\u0110\\u1eb7t\", \"col\": 4}}, {\"id\": \"97z_Rwvu1g\", \"type\": \"card\", \"data\": {\"card_name\": \"Portal C\\u00f4ng Nh\\u00e2n\", \"col\": 4}}]",
  "creation": "2026-01-14 17:40:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -165,7 +165,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-01-14 04:02:05.870208",
+ "modified": "2026-01-19 00:11:40.583127",
  "modified_by": "Administrator",
  "module": "Cat Sat",
  "name": "Cat Sat",
@@ -179,11 +179,27 @@
  "sequence_id": 1.0,
  "shortcuts": [
   {
+   "color": "Cyan",
+   "doc_view": "",
+   "icon": "chart-line",
+   "label": "Cat Sat Analytics",
+   "link_to": "Cat Sat Analytics",
+   "type": "Dashboard"
+  },
+  {
    "color": "Yellow",
    "doc_view": "List",
    "label": "Cutting Plan",
    "link_to": "Cutting Plan",
    "stats_filter": "",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Product Bundle",
+   "link_to": "Product Bundle",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {

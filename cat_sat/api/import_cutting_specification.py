@@ -175,19 +175,19 @@ def import_from_excel(file_url):
         
         if spec_name not in specs:
             specs[spec_name] = {
-                "pieces": {},
+                "piece_qtys": {},  # piece_name -> piece_qty mapping
                 "details": []
             }
         
-        # If row has piece_name, add/update piece
+        # If row has piece_name, track piece_qty for that piece
         if piece_name:
             current_piece = piece_name
-            if piece_name not in specs[spec_name]["pieces"]:
-                specs[spec_name]["pieces"][piece_name] = {
-                    "piece_code": piece_code,
-                    "piece_name": piece_name,
-                    "piece_qty": piece_qty or 1
-                }
+            current_piece_code = piece_code
+            current_piece_qty = piece_qty or 1
+            specs[spec_name]["piece_qtys"][piece_name] = {
+                "code": piece_code,
+                "qty": current_piece_qty
+            }
         
         # If row has steel_profile and length, add detail
         if steel_profile and length_mm:
@@ -195,12 +195,16 @@ def import_from_excel(file_url):
             if not frappe.db.exists("Steel Profile", steel_profile):
                 frappe.throw(f"Steel Profile '{steel_profile}' không tồn tại. Vui lòng tạo trước.")
             
+            # Get piece_qty from current piece context
+            p_info = specs[spec_name]["piece_qtys"].get(current_piece, {})
             specs[spec_name]["details"].append({
                 "piece_name": current_piece or piece_code,
+                "piece_code": p_info.get("code", piece_code),
+                "piece_qty": p_info.get("qty", 1),
                 "steel_profile": steel_profile,
                 "segment_name": segment_name or piece_code,
                 "length_mm": float(length_mm),
-                "qty_segment_per_piece": int(qty_per_piece or 1),
+                "qty_per_unit": int(qty_per_piece or 1),
                 "punch_hole_qty": int(punch_hole_qty or 0),
                 "rivet_hole_qty": int(rivet_hole_qty or 0),
                 "bend_type": bend_type or "Không",
@@ -217,11 +221,7 @@ def import_from_excel(file_url):
         doc = frappe.new_doc("Cutting Specification")
         doc.spec_name = spec_name
         
-        # Add pieces
-        for piece_data in data["pieces"].values():
-            doc.append("pieces", piece_data)
-        
-        # Add details
+        # Add details (pieces table no longer used)
         for detail in data["details"]:
             doc.append("details", detail)
         

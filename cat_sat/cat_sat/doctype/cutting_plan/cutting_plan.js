@@ -3,6 +3,9 @@ frappe.ui.form.on("Cutting Plan", {
 		// Render progress dashboard
 		render_progress_dashboard(frm);
 
+		// Render time statistics
+		render_time_statistics(frm);
+
 		if (!frm.is_new() && frm.doc.status === "Draft") {
 			frm.add_custom_button("Create Cutting Orders", () => {
 				frappe.call({
@@ -47,39 +50,63 @@ frappe.ui.form.on("Cutting Plan Item", {
 					return;
 				}
 
-				// If only 1 item, set it directly
-				if (items.length === 1) {
-					frappe.model.set_value(cdt, cdn, "item_code", items[0].item_code);
-					frappe.model.set_value(cdt, cdn, "product_qty", row.product_qty * items[0].qty);
-					return;
-				}
+				// Show dialog to input quantity
+				const dialog = new frappe.ui.Dialog({
+					title: `Nhập số lượng bộ: ${row.product_bundle}`,
+					fields: [
+						{
+							fieldname: 'bundle_qty',
+							fieldtype: 'Int',
+							label: `Số lượng bộ (${bundle.description || ''})`,
+							default: row.product_qty || 1,
+							reqd: 1,
+							description: `Bundle chứa: ${items.map(i => i.item_code).join(', ')}`
+						}
+					],
+					primary_action_label: 'Thêm vào danh sách',
+					primary_action(values) {
+						const bundle_qty = values.bundle_qty || 1;
 
-				// Multiple items - ask user to expand
-				frappe.confirm(
-					`Product Bundle "${row.product_bundle}" có ${items.length} Items. Bạn có muốn tách thành nhiều dòng?`,
-					() => {
-						// Remove current row and add individual items
-						const current_qty = row.product_qty || 1;
+						// If only 1 item, set it directly
+						if (items.length === 1) {
+							frappe.model.set_value(cdt, cdn, "item_code", items[0].item_code);
+							frappe.model.set_value(cdt, cdn, "product_qty", bundle_qty * items[0].qty);
+							dialog.hide();
+							frappe.show_alert({
+								message: `Đã thêm ${bundle_qty} bộ`,
+								indicator: "green"
+							});
+							return;
+						}
+
+						// Multiple items - expand into separate rows
+						// Remove current row
 						frm.get_field("items").grid.grid_rows_by_docname[cdn].remove();
 
+						// Add individual items
 						for (const item of items) {
 							const new_row = frm.add_child("items");
 							new_row.product_bundle = row.product_bundle;
 							new_row.item_code = item.item_code;
-							new_row.product_qty = current_qty * (item.qty || 1);
+							new_row.product_qty = bundle_qty * (item.qty || 1);
 						}
 
 						frm.refresh_field("items");
+						dialog.hide();
 						frappe.show_alert({
-							message: `Đã thêm ${items.length} Items từ Product Bundle`,
+							message: `Đã thêm ${items.length} Items từ ${bundle_qty} bộ ${row.product_bundle}`,
 							indicator: "green"
 						});
 					},
-					() => {
+					secondary_action_label: 'Hủy',
+					secondary_action() {
 						// User canceled - clear product_bundle
 						frappe.model.set_value(cdt, cdn, "product_bundle", "");
+						dialog.hide();
 					}
-				);
+				});
+
+				dialog.show();
 			}
 		});
 	}
@@ -214,6 +241,121 @@ function render_progress_dashboard(frm) {
 			}
 
 			frm.set_df_property('progress_summary', 'options', html);
+		}
+	});
+}
+
+function render_time_statistics(frm) {
+	if (frm.is_new()) {
+		frm.set_df_property('time_statistics', 'options', '<p class="text-muted">Lưu kế hoạch để xem thống kê thời gian</p>');
+		return;
+	}
+
+	frm.call({
+		method: 'get_progress_data',
+		doc: frm.doc,
+		callback(r) {
+			if (!r.message || !r.message.time_statistics) {
+				frm.set_df_property('time_statistics', 'options',
+					'<p class="text-muted">Chưa có dữ liệu thời gian. Bắt đầu cắt để thu thập.</p>');
+				return;
+			}
+
+			const stats = r.message.time_statistics;
+			let html = '';
+
+			// Summary card
+			html += `
+				<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:15px;">
+					<div style="background:#e3f2fd; padding:12px; border-radius:8px; text-align:center;">
+						<div style="font-size:1.5em; font-weight:bold; color:#1976d2;">⏱️ ${stats.total_duration}</div>
+						<div style="font-size:0.85em; color:#666;">Tổng thời gian cắt</div>
+					</div>
+					<div style="background:#e8f5e9; padding:12px; border-radius:8px; text-align:center;">
+						<div style="font-size:1.5em; font-weight:bold; color:#388e3c;">📦 ${stats.total_qty_cut}</div>
+						<div style="font-size:0.85em; color:#666;">Cây đã cắt</div>
+					</div>
+					<div style="background:#fff3e0; padding:12px; border-radius:8px; text-align:center;">
+						<div style="font-size:1.5em; font-weight:bold; color:#f57c00;">📊 ${stats.avg_per_bar}</div>
+						<div style="font-size:0.85em; color:#666;">TB / cây</div>
+					</div>
+					<div style="background:#fce4ec; padding:12px; border-radius:8px; text-align:center;">
+						<div style="font-size:1.5em; font-weight:bold; color:#c2185b;">⏳ ${stats.estimated_remaining}</div>
+						<div style="font-size:0.85em; color:#666;">Ước tính còn lại</div>
+					</div>
+				</div>
+			`;
+
+			// Target status
+			if (stats.target_status) {
+				const ts = stats.target_status;
+				if (ts.status === 'ahead') {
+					html += `<div style="background:#d4edda; padding:8px 15px; border-radius:5px; margin-bottom:15px;">
+						<strong>🟢 Nhanh hơn kế hoạch ${ts.days} ngày</strong>
+					</div>`;
+				} else {
+					html += `<div style="background:#f8d7da; padding:8px 15px; border-radius:5px; margin-bottom:15px;">
+						<strong>🔴 Chậm hơn kế hoạch ${ts.days} ngày</strong>
+					</div>`;
+				}
+			}
+
+			// Timeline
+			if (stats.first_start || stats.last_end) {
+				html += `<div style="margin-bottom:15px; padding:10px; background:#f5f5f5; border-radius:5px;">
+					<strong>Thời gian làm việc:</strong>
+					${stats.first_start ? `Bắt đầu: <code>${stats.first_start}</code>` : ''}
+					${stats.last_end ? ` → Cuối cùng: <code>${stats.last_end}</code>` : ''}
+				</div>`;
+			}
+
+			// By Steel Profile table
+			if (stats.by_profile && stats.by_profile.length > 0) {
+				html += '<h6 style="margin-top:15px;">📊 Theo loại sắt</h6>';
+				html += '<table class="table table-sm table-bordered" style="text-align:center">';
+				html += '<thead style="background:#e3f2fd"><tr><th>Loại sắt</th><th>Số cây</th><th>Thời gian</th><th>TB/cây</th></tr></thead>';
+				html += '<tbody>';
+				for (const p of stats.by_profile) {
+					html += `<tr>
+						<td><strong>${p.profile}</strong></td>
+						<td>${p.qty}</td>
+						<td>${p.duration}</td>
+						<td>${p.avg_per_bar}</td>
+					</tr>`;
+				}
+				html += '</tbody></table>';
+			}
+
+			// By Machine table
+			if (stats.by_machine && stats.by_machine.length > 0) {
+				html += '<h6 style="margin-top:15px;">🔧 Hiệu suất máy</h6>';
+				html += '<table class="table table-sm table-bordered" style="text-align:center">';
+				html += '<thead style="background:#fff3e0"><tr><th>Máy</th><th>Số cây</th><th>Thời gian</th><th>TB/cây</th><th>Vấn đề</th></tr></thead>';
+				html += '<tbody>';
+				for (const m of stats.by_machine) {
+					const issue_color = m.issues > 0 ? '#f8d7da' : '';
+					html += `<tr style="background:${issue_color}">
+						<td><strong>Máy ${m.machine}</strong></td>
+						<td>${m.qty}</td>
+						<td>${m.duration}</td>
+						<td>${m.avg_per_bar}</td>
+						<td>${m.issues > 0 ? `⚠️ ${m.issues}` : '✅'}</td>
+					</tr>`;
+				}
+				html += '</tbody></table>';
+			}
+
+			// Issues list
+			if (stats.issues && stats.issues.length > 0) {
+				html += '<h6 style="margin-top:15px; color:#dc3545;">⚠️ Vấn đề ghi nhận</h6>';
+				html += '<ul style="font-size:0.9em;">';
+				for (const issue of stats.issues) {
+					html += `<li><strong>Máy ${issue.machine}</strong>: ${issue.note} <span style="color:#888;">(${issue.pattern})</span></li>`;
+				}
+				html += '</ul>';
+			}
+
+			frm.set_df_property('time_statistics', 'options', html);
 		}
 	});
 }

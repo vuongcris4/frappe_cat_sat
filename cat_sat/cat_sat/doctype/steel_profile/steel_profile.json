@@ -10,6 +10,8 @@
         "profile_name",
         "shape",
         "dimension",
+        "default_machine",
+        "mctd_blade_width",
         "bundle_factors",
         "section_break_items",
         "items"
@@ -45,6 +47,23 @@
             "description": "VD: 10 hoặc 10x20"
         },
         {
+            "default": "Laser",
+            "fieldname": "default_machine",
+            "fieldtype": "Select",
+            "label": "Máy cắt mặc định",
+            "options": "Laser\nMCTĐ",
+            "description": "Máy cắt mặc định cho loại sắt này"
+        },
+        {
+            "default": "2.5",
+            "fieldname": "mctd_blade_width",
+            "fieldtype": "Select",
+            "label": "Mạch cắt MCTĐ (mm)",
+            "options": "2.5\n3.0",
+            "depends_on": "eval:doc.default_machine=='MCTĐ'",
+            "description": "Độ dày lưỡi cắt khi dùng MCTĐ"
+        },
+        {
             "default": "14 16 18 20",
             "fieldname": "bundle_factors",
             "fieldtype": "Data",
@@ -63,19 +82,9 @@
             "options": "Steel Profile Item"
         }
     ],
-    "permissions": [
-        {
-            "role": "System Manager",
-            "read": 1,
-            "write": 1,
-            "create": 1,
-            "delete": 1
-        }
-    ],
-    "grid_page_length": 50,
     "index_web_pages_for_search": 1,
     "links": [],
-    "modified": "2026-01-09 08:50:14.432808",
+    "modified": "2026-01-19 10:00:00.000000",
     "modified_by": "Administrator",
     "module": "Cat Sat",
     "name": "Steel Profile",
