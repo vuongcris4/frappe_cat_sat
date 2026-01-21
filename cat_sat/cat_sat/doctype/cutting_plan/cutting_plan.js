@@ -173,8 +173,10 @@ function render_progress_dashboard(frm) {
 
 						for (const p of prod.pieces) {
 							const p_color = p.allocated >= p.required ? '#28a745' : '#dc3545';
+							// Show as "PHOI-xxx - Tên mảnh: X/Y" when piece_code exists
+							const display_name = p.piece_code ? `${p.piece_code} - ${p.piece_name}` : p.piece_name;
 							html += `<span style="border:1px solid #ddd; padding:2px 6px; border-radius:3px; font-size:0.85em; background:#fff;">
-								${p.piece_name}: <b style="color:${p_color}">${p.allocated}/${p.required}</b>
+								${display_name}: <b style="color:${p_color}">${p.allocated}/${p.required}</b>
 							</span>`;
 						}
 

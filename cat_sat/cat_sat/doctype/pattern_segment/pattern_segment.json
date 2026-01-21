@@ -5,6 +5,7 @@
     "editable_grid": 1,
     "engine": "InnoDB",
     "field_order": [
+        "piece_code",
         "piece_name",
         "segment_name",
         "steel_profile",
@@ -19,6 +20,12 @@
         "source_item"
     ],
     "fields": [
+        {
+            "fieldname": "piece_code",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Mã mảnh"
+        },
         {
             "fieldname": "piece_name",
             "fieldtype": "Data",

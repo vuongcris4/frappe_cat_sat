@@ -99,12 +99,9 @@ def generate_requirements(plan):
             
             # Get piece_name from Item's custom field (with cache)
             if bom_item not in item_name_cache:
-                item_data = frappe.db.get_value("Item", bom_item, ["piece_name", "item_name"], as_dict=True)
-                if item_data:
-                    # Use piece_name if set, otherwise fallback to item_name
-                    item_name_cache[bom_item] = item_data.get("piece_name") or item_data.get("item_name") or bom_item
-                else:
-                    item_name_cache[bom_item] = bom_item
+                item_piece_name = frappe.db.get_value("Item", bom_item, "piece_name")
+                # Just use the short name (e.g., "Khung tựa đôi")
+                item_name_cache[bom_item] = item_piece_name or bom_item
             piece_name = item_name_cache[bom_item]
             
             # Get piece_qty from mapping, or default to 1
@@ -175,11 +172,16 @@ def create_cutting_orders(plan_name: str):
         if exists:
             continue
 
+        # Get default trim from Cutting Settings
+        settings = frappe.get_single("Cutting Settings")
+        default_trim = settings.laser_trim_cut or 10
+
         # Create new Order
         co = frappe.new_doc("Cutting Order")
         co.cutting_plan = plan.name
         co.steel_profile = steel_profile
         co.stock_length = 6000  # Default, should ideally come from Steel Profile
+        co.trim_cut = default_trim  # Set default trim from settings
         
         for r in rows:
             co.append("items", {

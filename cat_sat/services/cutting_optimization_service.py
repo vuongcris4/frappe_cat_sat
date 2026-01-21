@@ -251,28 +251,39 @@ def run_optimization(order_name: str):
             spec = frappe.get_doc("Cutting Specification", source_spec_name)
             source_item = frappe.db.get_value("Item", {"cutting_specification": source_spec_name}, "name") or ""
             
+            # Cache for Item piece_name lookup
+            piece_name_cache = {}
+            
             # Build a lookup from spec.details by length for full metadata
-            # Changed: Store list of piece_names for segments with same length
-            piece_names_by_length = defaultdict(set)  # Track unique piece names per length
+            # Track unique piece info per length
+            piece_codes_by_length = defaultdict(set)  # Track unique bom_items per length
             
             for detail in spec.details:
                 length = flt(detail.length_mm)
+                bom_item = detail.bom_item or ""
                 
-                # Collect piece names for this length
-                if detail.piece_name:
-                    piece_names_by_length[length].add(detail.piece_name)
+                # Get piece_name from Item's custom field (with cache)
+                if bom_item and bom_item not in piece_name_cache:
+                    item_piece_name = frappe.db.get_value("Item", bom_item, "piece_name")
+                    # Just use the short name (e.g., "Khung tựa đôi")
+                    piece_name_cache[bom_item] = item_piece_name or bom_item
+                
+                # Collect bom_items for this length
+                if bom_item:
+                    piece_codes_by_length[length].add(piece_name_cache.get(bom_item, bom_item))
                 
                 # Store metadata by length - if multiple segments have same length, merge info
                 if length not in spec_details_by_length:
                     spec_details_by_length[length] = {
-                        "piece_name": detail.piece_name or "",
+                        "piece_name": piece_name_cache.get(bom_item, bom_item) if bom_item else "",
+                        "piece_code": bom_item,
                         "steel_profile": detail.steel_profile or "",
                         "segment_name": detail.segment_name or f"{length}mm",
                         "length_mm": length,
-                        "qty_segment_per_piece": cint(detail.qty_segment_per_piece or 1),
+                        "qty_segment_per_piece": cint(detail.qty_per_unit or 1),
                         "punch_holes": cint(detail.punch_hole_qty or 0),
                         "rivet_holes": cint(detail.rivet_hole_qty or 0),
-                        "drill_holes": cint(getattr(detail, 'drill_hole_qty', 0)),
+                        "drill_holes": cint(detail.drill_hole_qty or 0),
                         "bending": detail.bend_type or "",
                         "note": detail.note or "",
                         "source_spec": source_spec_name,
@@ -280,7 +291,7 @@ def run_optimization(order_name: str):
                     }
             
             # Update piece_name to include all pieces for this length
-            for length, names in piece_names_by_length.items():
+            for length, names in piece_codes_by_length.items():
                 if length in spec_details_by_length:
                     spec_details_by_length[length]["piece_name"] = ", ".join(sorted(names))
                     
@@ -301,8 +312,9 @@ def run_optimization(order_name: str):
             if length in spec_details_by_length:
                 segment_info[length] = spec_details_by_length[length].copy()
             else:
-                # Fallback to data from order.items - use piece_name from order
+                # Fallback to data from order.items - use piece_name and piece_code from order
                 segment_info[length] = {
+                    "piece_code": getattr(item, 'piece_code', '') or '',
                     "piece_name": getattr(item, 'piece_name', '') or '',
                     "steel_profile": order.steel_profile or "",
                     "segment_name": segment_name,
@@ -453,6 +465,7 @@ def run_optimization(order_name: str):
             
             # Build segment child data with FULL traceability
             segments_data.append({
+                "piece_code": info.get("piece_code", ""),
                 "piece_name": info.get("piece_name", ""),
                 "segment_name": info.get("segment_name", f"{length}mm"),
                 "steel_profile": info.get("steel_profile", ""),
@@ -544,6 +557,7 @@ def run_optimization(order_name: str):
                 seg_doc.parenttype = "Cutting Pattern"
                 seg_doc.parentfield = "segments"
                 seg_doc.idx = idx
+                seg_doc.piece_code = seg.get("piece_code", "")
                 seg_doc.piece_name = seg.get("piece_name", "")
                 seg_doc.segment_name = seg.get("segment_name", "")
                 seg_doc.steel_profile = seg.get("steel_profile", "")
@@ -797,11 +811,15 @@ def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length,
             obj_value, sol = patterns[j]
             pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
             
+            # obj_value includes trim, so subtract trim to get pure cuts+kerf
+            # used_length = cuts + kerf only (not including trim)
+            used_length = obj_value - trim
+            
             result_patterns.append({
                 'pattern': pattern_dict,
                 'qty': qty,
-                'used_length': obj_value,
-                'waste': stock_length - obj_value
+                'used_length': used_length,
+                'waste': stock_length - used_length  # This naturally includes trim
             })
     
     return result_patterns
@@ -924,13 +942,16 @@ def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_lengt
                 obj_value, sol = patterns[j]
                 pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
                 
+                # obj_value includes trim, subtract it for pure cuts+kerf
+                used_length = obj_value - trim
+                
                 result_patterns.append({
                     'pattern': pattern_dict,
                     'qty': num_bundles * f,  # Total bars
                     'factor': f,
                     'bundles': num_bundles,
-                    'used_length': obj_value,
-                    'waste': stock_length - obj_value
+                    'used_length': used_length,
+                    'waste': stock_length - used_length  # Includes trim naturally
                 })
     
     return result_patterns

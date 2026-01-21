@@ -23,15 +23,18 @@
     "fields": [
         {
             "fieldname": "piece_code",
-            "fieldtype": "Data",
+            "fieldtype": "Link",
             "in_list_view": 1,
-            "label": "Mã mảnh"
+            "label": "Mã mảnh",
+            "options": "Item"
         },
         {
             "fieldname": "piece_name",
             "fieldtype": "Data",
             "in_list_view": 1,
-            "label": "Tên mảnh"
+            "label": "Tên mảnh",
+            "read_only": 1,
+            "fetch_from": "piece_code.piece_name"
         },
         {
             "fieldname": "segment_name",

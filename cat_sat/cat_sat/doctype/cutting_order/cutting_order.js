@@ -226,6 +226,7 @@ function show_pattern_dialog(pattern, segments) {
         <table class="table table-bordered table-sm" style="font-size: 0.9em;">
             <thead style="position: sticky; top: 0; background: var(--card-bg);">
                 <tr>
+                    <th>Mã mảnh</th>
                     <th>Tên mảnh</th>
                     <th>Tên đoạn</th>
                     <th>Dài (mm)</th>
@@ -239,11 +240,12 @@ function show_pattern_dialog(pattern, segments) {
             <tbody>`;
 
     if (segments.length === 0) {
-        table_html += `<tr><td colspan="8" class="text-center text-muted">Chưa có chi tiết segment</td></tr>`;
+        table_html += `<tr><td colspan="9" class="text-center text-muted">Chưa có chi tiết segment</td></tr>`;
     } else {
         segments.forEach(seg => {
             table_html += `
                 <tr>
+                    <td><code>${seg.piece_code || '-'}</code></td>
                     <td>${seg.piece_name || '-'}</td>
                     <td><strong>${seg.segment_name || '-'}</strong></td>
                     <td class="text-right">${seg.length_mm || 0}</td>

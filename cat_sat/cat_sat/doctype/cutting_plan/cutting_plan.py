@@ -93,16 +93,37 @@ class CuttingPlan(Document):
 			
 			product_complete_count = 0
 			
-			# Build piece requirements from details (grouped by piece_name)
-			# Each unique piece_name is like a "piece type"
-			piece_info = {}  # piece_name -> {"qty": piece_qty, "segments": [(profile, length, qty_per_unit), ...]}
+			# Build piece requirements from details (grouped by bom_item -> piece_name)
+			# Each unique bom_item represents a "piece type"
+			piece_info = {}  # piece_name -> {"qty": piece_qty, "segments": [...]}
+			piece_name_cache = {}  # bom_item -> piece_name (cache for efficiency)
+			
 			for d in spec.details:
-				p_name = (d.piece_name or "").strip()
-				if not p_name:
+				bom_item = (d.bom_item or "").strip()
+				if not bom_item:
 					continue
+				
+				# Get piece_name from Item's custom field (with cache)
+				if bom_item not in piece_name_cache:
+					item_piece_name = frappe.db.get_value("Item", bom_item, "piece_name")
+					# Just use the short name (e.g., "Khung tựa đôi")
+					piece_name_cache[bom_item] = item_piece_name or bom_item
+				
+				p_name = piece_name_cache[bom_item]
+				
 				if p_name not in piece_info:
+					# Get piece_qty from hardcoded mapping for I3/I5 products
+					piece_qty_map = {
+						"PHOI-I5.1.1": 1, "PHOI-I5.1.2": 1, "PHOI-I5.1.3": 1, "PHOI-I5.1.4": 1,
+						"PHOI-I5.2.1": 2, "PHOI-I5.2.2": 2, "PHOI-I5.2.3": 2, "PHOI-I5.2.4": 2,
+						"PHOI-I5.3.1": 1, "PHOI-I5.3.2": 2,
+						"PHOI-I3.1.1": 2, "PHOI-I3.1.2": 2, "PHOI-I3.1.3": 2, "PHOI-I3.1.4": 2,
+						"PHOI-I3.2.1": 1, "PHOI-I3.2.2": 2, "PHOI-I3.2.3": 2,
+					}
+					piece_qty = piece_qty_map.get(bom_item, 1)
 					piece_info[p_name] = {
-						"qty": d.piece_qty or 1,
+						"qty": piece_qty,
+						"bom_item": bom_item,  # Store piece code for display
 						"segments": []
 					}
 				piece_info[p_name]["segments"].append({
@@ -164,6 +185,7 @@ class CuttingPlan(Document):
 				allocated_qty = sets_made * piece_qty
 				
 				product_pieces.append({
+					"piece_code": pdata.get("bom_item", ""),  # PHOI code for display
 					"piece_name": p_name,
 					"required": total_needed_for_product,
 					"allocated": allocated_qty,
