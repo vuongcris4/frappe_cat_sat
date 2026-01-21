@@ -418,7 +418,9 @@ def run_optimization(order_name: str):
         for length, count in pat['pattern'].items():
             # Get segment info for display
             info = segment_info.get(length, {})
-            piece_name = info.get("piece_name", "") or info.get("segment_name", f"{length}mm")
+            segment_name = info.get("segment_name", "") or f"{length}mm"
+            piece_name = info.get("piece_name", "")
+            piece_code = info.get("piece_code", "") or info.get("source_item", "")
             
             # Build machining details for pattern display
             machining_parts = []
@@ -431,13 +433,23 @@ def run_optimization(order_name: str):
             if info.get("bending", "") and info.get("bending", "") != "Không":
                 machining_parts.append(info["bending"])
             
-            # Format: "3x Tên mảnh 425mm (2 dập, 1 tán)"
+            # Format: "3x Tên đoạn 497mm [Mảnh: Tên mảnh]" 
+            # Example: "3x H10-20 (uốn) 497mm [Khung tựa]"
             length_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
+            
+            # Build segment display name
+            display_name = segment_name
             if machining_parts:
                 machining_str = ", ".join(machining_parts)
-                pattern_parts.append(f"{count}x {piece_name} {length_str}mm ({machining_str})")
+                display_name = f"{segment_name} ({machining_str})"
+            
+            # Build piece info bracket
+            if piece_name:
+                piece_info = f" [{piece_name}]"
             else:
-                pattern_parts.append(f"{count}x {piece_name} {length_str}mm")
+                piece_info = ""
+            
+            pattern_parts.append(f"{count}x {display_name} {length_str}mm{piece_info}")
             
             # Build segment child data with FULL traceability
             segments_data.append({
@@ -467,10 +479,11 @@ def run_optimization(order_name: str):
         actual_waste = max(raw_waste, trim)
         
         # Build segments summary for grid display
-        # Format: "3x Tên mảnh 425mm (2 dập, 1 tán, uốn cong)"
+        # Format: "3x Tên đoạn (machining) 497mm [Tên mảnh]"
         segments_summary_parts = []
         for seg in segments_data:
-            piece_name = seg.get("piece_name", "") or seg.get("segment_name", "")
+            segment_name = seg.get("segment_name", "") or f"{seg.get('length_mm', 0)}mm"
+            piece_name = seg.get("piece_name", "")
             length = seg.get("length_mm", 0)
             qty = seg.get("quantity", 0)
             
@@ -486,13 +499,22 @@ def run_optimization(order_name: str):
                 if seg.get("bending", "") and seg.get("bending", "") != "Không":
                     machining_parts.append(seg["bending"])
                 
-                # Format: "3x Tên mảnh 425mm (2 dập, 1 tán)"
+                # Format: "3x Tên đoạn (machining) 497mm [Tên mảnh]"
                 length_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
+                
+                # Build segment display name
+                display_name = segment_name
                 if machining_parts:
                     machining_str = ", ".join(machining_parts)
-                    summary_part = f"{qty}x {piece_name} {length_str}mm ({machining_str})"
+                    display_name = f"{segment_name} ({machining_str})"
+                
+                # Build piece info bracket
+                if piece_name:
+                    piece_info = f" [{piece_name}]"
                 else:
-                    summary_part = f"{qty}x {piece_name} {length_str}mm"
+                    piece_info = ""
+                
+                summary_part = f"{qty}x {display_name} {length_str}mm{piece_info}"
                     
                 segments_summary_parts.append(summary_part)
         segments_summary = ", ".join(segments_summary_parts)
