@@ -11,7 +11,11 @@
     "steel_profile",
     "segment_name",
     "length_mm",
-    "qty"
+    "qty",
+    "punch_holes",
+    "rivet_holes",
+    "drill_holes",
+    "bending"
   ],
   "fields": [
     {
@@ -56,13 +60,37 @@
       "in_list_view": 1,
       "label": "Số lượng",
       "reqd": 1
+    },
+    {
+      "fieldname": "punch_holes",
+      "fieldtype": "Int",
+      "label": "Lỗ dập",
+      "default": "0"
+    },
+    {
+      "fieldname": "rivet_holes",
+      "fieldtype": "Int",
+      "label": "Lỗ tán",
+      "default": "0"
+    },
+    {
+      "fieldname": "drill_holes",
+      "fieldtype": "Int",
+      "label": "Lỗ khoan",
+      "default": "0"
+    },
+    {
+      "fieldname": "bending",
+      "fieldtype": "Select",
+      "label": "Uốn",
+      "options": "\nKhông\nUốn 1 đầu\nUốn 2 đầu\nUốn cong"
     }
   ],
   "grid_page_length": 50,
   "index_web_pages_for_search": 1,
   "istable": 1,
   "links": [],
-  "modified": "2026-01-18 23:20:00.000000",
+  "modified": "2026-01-22 11:35:00.000000",
   "modified_by": "Administrator",
   "module": "Cat Sat",
   "name": "Cutting Plan Requirement",

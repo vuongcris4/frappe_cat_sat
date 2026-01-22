@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"i62Rb-XVLw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>K\u1ebf ho\u1ea1ch</b></span>\",\"col\":12}},{\"id\":\"lZDduFSyWr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Order\",\"col\":3}},{\"id\":\"9sRk52sesR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Production Plan\",\"col\":3}},{\"id\":\"vFucNSSPST\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Plan\",\"col\":3}},{\"id\":\"P-Ggb2Ro9a\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Cat Sat</b></span>\",\"col\":12}},{\"id\":\"5uUEu4HRb4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Order\",\"col\":3}},{\"id\":\"fUo64mDsgO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Steel Profile\",\"col\":3}},{\"id\":\"j9aDg2z7iv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"4VguTkF-64\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Specification\",\"col\":3}},{\"id\":\"cpq76LEpuY\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Temp</b></span>\",\"col\":12}},{\"id\":\"sTVzC4LaXQ\",\"type\":\"card\",\"data\":{\"card_name\":\"K\u1ebf Ho\u1ea1ch & L\u1ec7nh C\u1eaft\",\"col\":4}},{\"id\":\"Jjc4JZQMUb\",\"type\":\"card\",\"data\":{\"card_name\":\"\u0110\u1ecbnh M\u1ee9c & C\u00e0i \u0110\u1eb7t\",\"col\":4}},{\"id\":\"97z_Rwvu1g\",\"type\":\"card\",\"data\":{\"card_name\":\"Portal C\u00f4ng Nh\u00e2n\",\"col\":4}},{\"id\":\"G7eRENeD_W\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Th\u1ed1ng k\u00ea</b></span>\",\"col\":12}},{\"id\":\"DashAnalyt\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cat Sat Analytics\",\"col\":3}},{\"id\":\"M9vw4XvODY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Production Log\",\"col\":3}}]",
+ "content": "[{\"id\":\"i62Rb-XVLw\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>K\u1ebf ho\u1ea1ch</b></span>\",\"col\":12}},{\"id\":\"lZDduFSyWr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Order\",\"col\":3}},{\"id\":\"9sRk52sesR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Production Plan\",\"col\":3}},{\"id\":\"vFucNSSPST\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Plan\",\"col\":3}},{\"id\":\"P-Ggb2Ro9a\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Cat Sat</b></span>\",\"col\":12}},{\"id\":\"5uUEu4HRb4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Order\",\"col\":3}},{\"id\":\"fUo64mDsgO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Steel Profile\",\"col\":3}},{\"id\":\"j9aDg2z7iv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item\",\"col\":3}},{\"id\":\"4VguTkF-64\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Specification\",\"col\":3}},{\"id\":\"G7eRENeD_W\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Th\u1ed1ng k\u00ea</b></span>\",\"col\":12}},{\"id\":\"DashAnalyt\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cat Sat Analytics\",\"col\":3}},{\"id\":\"M9vw4XvODY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cutting Production Log\",\"col\":3}}]",
  "creation": "2026-01-14 17:40:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,16 +13,6 @@
  "is_hidden": 0,
  "label": "Cat Sat",
  "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "K\u1ebf Ho\u1ea1ch & L\u1ec7nh C\u1eaft",
-   "link_count": 0,
-   "link_type": "DocType",
-   "onboard": 0,
-   "only_for": "",
-   "type": "Card Break"
-  },
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -66,16 +56,6 @@
    "onboard": 0,
    "only_for": "",
    "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "\u0110\u1ecbnh M\u1ee9c & C\u00e0i \u0110\u1eb7t",
-   "link_count": 0,
-   "link_type": "DocType",
-   "onboard": 0,
-   "only_for": "",
-   "type": "Card Break"
   },
   {
    "hidden": 0,
@@ -124,16 +104,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Portal C\u00f4ng Nh\u00e2n",
-   "link_count": 0,
-   "link_type": "DocType",
-   "onboard": 0,
-   "only_for": "",
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Portal C\u1eaft S\u1eaft",
    "link_count": 0,
    "link_to": "cat-sat-portal",
@@ -165,7 +135,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-01-20 20:02:41.621458",
+ "modified": "2026-01-21 18:10:19.025970",
  "modified_by": "Administrator",
  "module": "Cat Sat",
  "name": "Cat Sat",

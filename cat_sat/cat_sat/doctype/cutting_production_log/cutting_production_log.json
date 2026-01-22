@@ -1,187 +1,187 @@
 {
- "actions": [],
- "allow_rename": 1,
- "autoname": "format:CTL-{YYYY}{MM}{DD}-{#####}",
- "creation": "2026-01-08 20:08:30.282843",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "section_reference",
-  "cutting_order",
-  "cutting_plan",
-  "pattern_idx",
-  "column_break_ref",
-  "steel_profile",
-  "stock_length",
-  "pattern",
-  "section_time",
-  "start_time",
-  "end_time",
-  "column_break_time",
-  "duration_seconds",
-  "qty_cut",
-  "status",
-  "action",
-  "section_machine",
-  "machine_no",
-  "laser_speed",
-  "column_break_machine",
-  "issue_note"
- ],
- "fields": [
-  {
-   "fieldname": "section_reference",
-   "fieldtype": "Section Break",
-   "label": "Th\u00f4ng tin tham chi\u1ebfu"
-  },
-  {
-   "fieldname": "cutting_order",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "L\u1ec7nh c\u1eaft",
-   "options": "Cutting Order",
-   "reqd": 1
-  },
-  {
-   "fieldname": "cutting_plan",
-   "fieldtype": "Link",
-   "label": "K\u1ebf ho\u1ea1ch c\u1eaft",
-   "options": "Cutting Plan",
-   "read_only": 1
-  },
-  {
-   "fieldname": "pattern_idx",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "D\u00f2ng Pattern"
-  },
-  {
-   "fieldname": "column_break_ref",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "steel_profile",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Lo\u1ea1i s\u1eaft",
-   "options": "Steel Profile",
-   "read_only": 1
-  },
-  {
-   "fieldname": "stock_length",
-   "fieldtype": "Int",
-   "label": "Chi\u1ec1u d\u00e0i c\u00e2y (mm)",
-   "read_only": 1
-  },
-  {
-   "fieldname": "pattern",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Pattern",
-   "read_only": 1
-  },
-  {
-   "fieldname": "section_time",
-   "fieldtype": "Section Break",
-   "label": "Th\u1eddi gian"
-  },
-  {
-   "fieldname": "action",
-   "fieldtype": "Select",
-   "label": "Action",
-   "options": "Start\nStop"
-  },
-  {
-   "fieldname": "start_time",
-   "fieldtype": "Datetime",
-   "in_list_view": 1,
-   "label": "B\u1eaft \u0111\u1ea7u"
-  },
-  {
-   "fieldname": "end_time",
-   "fieldtype": "Datetime",
-   "in_list_view": 1,
-   "label": "K\u1ebft th\u00fac"
-  },
-  {
-   "fieldname": "column_break_time",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "duration_seconds",
-   "fieldtype": "Float",
-   "label": "Th\u1eddi gian (gi\u00e2y)",
-   "read_only": 1
-  },
-  {
-   "fieldname": "qty_cut",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "SL c\u00e2y \u0111\u00e3 c\u1eaft"
-  },
-  {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Tr\u1ea1ng th\u00e1i",
-   "options": "Running\nDone"
-  },
-  {
-   "fieldname": "section_machine",
-   "fieldtype": "Section Break",
-   "label": "Th\u00f4ng tin m\u00e1y"
-  },
-  {
-   "fieldname": "machine_no",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "M\u00e1y s\u1ed1",
-   "options": "\n1\n2\n3\n4"
-  },
-  {
-   "fieldname": "laser_speed",
-   "fieldtype": "Int",
-   "label": "T\u1ed1c \u0111\u1ed9 Laser (%)"
-  },
-  {
-   "fieldname": "column_break_machine",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "issue_note",
-   "fieldtype": "Small Text",
-   "label": "Ghi ch\u00fa v\u1ea5n \u0111\u1ec1"
-  }
- ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-01-18 23:39:33.348564",
- "modified_by": "Administrator",
- "module": "Cat Sat",
- "name": "Cutting Production Log",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  }
- ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "format:CTL-{YYYY}{MM}{DD}-{#####}",
+    "creation": "2026-01-08 20:08:30.282843",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "section_reference",
+        "cutting_order",
+        "cutting_plan",
+        "pattern_idx",
+        "column_break_ref",
+        "steel_profile",
+        "stock_length",
+        "pattern",
+        "section_time",
+        "start_time",
+        "end_time",
+        "column_break_time",
+        "duration_seconds",
+        "qty_cut",
+        "status",
+        "action",
+        "section_machine",
+        "machine_no",
+        "laser_speed",
+        "column_break_machine",
+        "issue_note"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_reference",
+            "fieldtype": "Section Break",
+            "label": "Th\u00f4ng tin tham chi\u1ebfu"
+        },
+        {
+            "fieldname": "cutting_order",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "L\u1ec7nh c\u1eaft",
+            "options": "Cutting Order",
+            "reqd": 1
+        },
+        {
+            "fieldname": "cutting_plan",
+            "fieldtype": "Link",
+            "label": "K\u1ebf ho\u1ea1ch c\u1eaft",
+            "options": "Cutting Plan",
+            "read_only": 1
+        },
+        {
+            "fieldname": "pattern_idx",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "D\u00f2ng Pattern"
+        },
+        {
+            "fieldname": "column_break_ref",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "steel_profile",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Lo\u1ea1i s\u1eaft",
+            "options": "Steel Profile",
+            "read_only": 1
+        },
+        {
+            "fieldname": "stock_length",
+            "fieldtype": "Int",
+            "label": "Chi\u1ec1u d\u00e0i c\u00e2y (mm)",
+            "read_only": 1
+        },
+        {
+            "fieldname": "pattern",
+            "fieldtype": "Text",
+            "in_list_view": 1,
+            "label": "Pattern",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_time",
+            "fieldtype": "Section Break",
+            "label": "Th\u1eddi gian"
+        },
+        {
+            "fieldname": "action",
+            "fieldtype": "Select",
+            "label": "Action",
+            "options": "Start\nStop"
+        },
+        {
+            "fieldname": "start_time",
+            "fieldtype": "Datetime",
+            "in_list_view": 1,
+            "label": "B\u1eaft \u0111\u1ea7u"
+        },
+        {
+            "fieldname": "end_time",
+            "fieldtype": "Datetime",
+            "in_list_view": 1,
+            "label": "K\u1ebft th\u00fac"
+        },
+        {
+            "fieldname": "column_break_time",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "duration_seconds",
+            "fieldtype": "Float",
+            "label": "Th\u1eddi gian (gi\u00e2y)",
+            "read_only": 1
+        },
+        {
+            "fieldname": "qty_cut",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "SL c\u00e2y \u0111\u00e3 c\u1eaft"
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Tr\u1ea1ng th\u00e1i",
+            "options": "Running\nDone"
+        },
+        {
+            "fieldname": "section_machine",
+            "fieldtype": "Section Break",
+            "label": "Th\u00f4ng tin m\u00e1y"
+        },
+        {
+            "fieldname": "machine_no",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "M\u00e1y s\u1ed1",
+            "options": "\n1\n2\n3\n4"
+        },
+        {
+            "fieldname": "laser_speed",
+            "fieldtype": "Int",
+            "label": "T\u1ed1c \u0111\u1ed9 Laser (%)"
+        },
+        {
+            "fieldname": "column_break_machine",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "issue_note",
+            "fieldtype": "Small Text",
+            "label": "Ghi ch\u00fa v\u1ea5n \u0111\u1ec1"
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-01-18 23:39:33.348564",
+    "modified_by": "Administrator",
+    "module": "Cat Sat",
+    "name": "Cutting Production Log",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
 }

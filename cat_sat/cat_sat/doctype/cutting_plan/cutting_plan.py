@@ -22,6 +22,9 @@ class CuttingPlan(Document):
 		"""
 		Calculate aggregate progress from all Cutting Orders linked to this plan.
 		Returns data for dashboard display including complete products.
+		
+		IMPORTANT: Produced qty is calculated directly from Production Log,
+		NOT from cached produced_qty fields on Cutting Order Input.
 		"""
 		# Find all Cutting Orders for this plan
 		orders = frappe.get_all(
@@ -33,17 +36,58 @@ class CuttingPlan(Document):
 		if not orders:
 			return None
 		
-		# Aggregate segment progress across all orders
-		segment_progress = defaultdict(lambda: {"required": 0, "produced": 0, "segment_name": ""})
+		# Calculate produced quantities from Production Log (source of truth)
+		# Build map: (steel_profile, length_mm, piece_code) -> produced_qty
+		produced_from_log = defaultdict(int)
+		
+		for order_info in orders:
+			# Get patterns for this order
+			patterns = frappe.get_all(
+				"Cutting Pattern",
+				filters={"parent": order_info.name, "parenttype": "Cutting Order"},
+				fields=["name", "idx"]
+			)
+			
+			for pat in patterns:
+				# Calculate cut_qty from Production Log
+				cut_qty = frappe.db.sql("""
+					SELECT COALESCE(SUM(qty_cut), 0) 
+					FROM `tabCutting Production Log`
+					WHERE cutting_order = %s AND pattern_idx = %s AND status = 'Done'
+				""", (order_info.name, pat.idx))[0][0] or 0
+				
+				if cut_qty > 0:
+					# Get segments from Pattern Segment
+					segments = frappe.db.get_all(
+						"Pattern Segment",
+						filters={"parent": pat.name, "parenttype": "Cutting Pattern"},
+						fields=["length_mm", "quantity", "piece_code", "piece_name", "segment_name"]
+					)
+					for seg in segments:
+						length = flt(seg.length_mm)
+						count = cint(seg.quantity)
+						piece_code = seg.piece_code or ""
+						if length > 0 and count > 0:
+							# Key includes piece_code for proper per-segment tracking
+							key = (order_info.steel_profile, length, piece_code)
+							produced_from_log[key] += count * cut_qty
+		
+		# Aggregate segment requirements from Cutting Order Items
+		# Key: (steel_profile, length_mm, piece_code) for accurate per-segment tracking
+		segment_progress = defaultdict(lambda: {"required": 0, "produced": 0, "segment_name": "", "piece_code": "", "piece_name": ""})
 		
 		for order_info in orders:
 			order = frappe.get_doc("Cutting Order", order_info.name)
 			for item in order.items:
-				key = (order_info.steel_profile, item.length_mm)
+				piece_code = getattr(item, 'piece_code', '') or ''
+				key = (order_info.steel_profile, flt(item.length_mm), piece_code)
 				segment_progress[key]["required"] += item.qty
-				segment_progress[key]["produced"] += item.produced_qty or 0
+				# Use produced from log with matching piece_code
+				segment_progress[key]["produced"] = produced_from_log.get(key, 0)
 				segment_progress[key]["segment_name"] = item.segment_name or f"{item.length_mm}mm"
 				segment_progress[key]["steel_profile"] = order_info.steel_profile
+				segment_progress[key]["piece_code"] = piece_code
+				segment_progress[key]["piece_name"] = getattr(item, 'piece_name', '') or ''
 		
 		# Calculate sync data for each specification
 		sync_data = []
@@ -57,16 +101,8 @@ class CuttingPlan(Document):
 					sync_data.append(sync)
 		
 		# Calculate complete products using POOLED distribution
-		# We aggregate ALL produced quantities from all orders into a single pool
-		# Then attempting to "build" products sequentially until pool is exhausted.
-		
-		# 1. Build Global Produced Pool: (Steel Profile, Length) -> Total Produced
-		global_produced_pool = defaultdict(int)
-		for order_info in orders:
-			order_doc = frappe.get_doc("Cutting Order", order_info.name)
-			for item in order_doc.items:
-				key = (order_info.steel_profile, item.length_mm)
-				global_produced_pool[key] += item.produced_qty or 0
+		# Use produced_from_log directly as the pool
+		global_produced_pool = produced_from_log.copy()
 
 		# 2. Iterate Plan Items (Products) and calculate completion
 		complete_products = []
@@ -209,7 +245,7 @@ class CuttingPlan(Document):
 		
 		# Prepare segment list for display
 		segments_list = []
-		for (profile, length), data in sorted(segment_progress.items()):
+		for (profile, length, piece_code), data in sorted(segment_progress.items()):
 			remaining = data["required"] - data["produced"]
 			segments_list.append({
 				"steel_profile": profile,
@@ -218,7 +254,9 @@ class CuttingPlan(Document):
 				"required": data["required"],
 				"produced": data["produced"],
 				"remaining": remaining,
-				"percent": round((data["produced"] / data["required"] * 100) if data["required"] > 0 else 0, 1)
+				"percent": round((data["produced"] / data["required"] * 100) if data["required"] > 0 else 0, 1),
+				"piece_code": piece_code,
+				"piece_name": data.get("piece_name", "")
 			})
 		
 		# Calculate Time Statistics from Cutting Production Log

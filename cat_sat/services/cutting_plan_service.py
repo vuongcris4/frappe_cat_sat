@@ -121,7 +121,12 @@ def generate_requirements(plan):
                     aggregated_requirements[agg_key] = {
                         "qty": 0,
                         "piece_code": bom_item,
-                        "piece_name": piece_name
+                        "piece_name": piece_name,
+                        # Machining details from Cutting Detail
+                        "punch_holes": getattr(d, 'punch_hole_qty', 0) or 0,
+                        "rivet_holes": getattr(d, 'rivet_hole_qty', 0) or 0,
+                        "drill_holes": getattr(d, 'drill_hole_qty', 0) or 0,
+                        "bending": getattr(d, 'bend_type', '') or ''
                     }
                 aggregated_requirements[agg_key]["qty"] += total_segment
 
@@ -133,7 +138,12 @@ def generate_requirements(plan):
             "qty": data["qty"],
             "segment_name": segment_name,
             "piece_code": data["piece_code"],
-            "piece_name": data["piece_name"]
+            "piece_name": data["piece_name"],
+            # Machining details
+            "punch_holes": data.get("punch_holes", 0),
+            "rivet_holes": data.get("rivet_holes", 0),
+            "drill_holes": data.get("drill_holes", 0),
+            "bending": data.get("bending", "")
         })
 
 
@@ -189,7 +199,12 @@ def create_cutting_orders(plan_name: str):
                 "qty": r.qty,
                 "segment_name": r.segment_name,
                 "piece_code": getattr(r, 'piece_code', '') or '',
-                "piece_name": getattr(r, 'piece_name', '') or ''
+                "piece_name": getattr(r, 'piece_name', '') or '',
+                # Machining details from Cutting Plan Requirement
+                "punch_holes": getattr(r, 'punch_holes', 0) or 0,
+                "rivet_holes": getattr(r, 'rivet_holes', 0) or 0,
+                "drill_holes": getattr(r, 'drill_holes', 0) or 0,
+                "bending": getattr(r, 'bending', '') or ''
             })
             
         co.insert()

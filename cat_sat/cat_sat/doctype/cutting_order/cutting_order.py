@@ -10,6 +10,18 @@ from frappe.utils import cint, flt
 
 
 class CuttingOrder(Document):
+	def on_trash(self):
+		"""Clean up Pattern Segments when Cutting Order is deleted"""
+		# Get all Cutting Pattern names for this order
+		pattern_names = frappe.get_all(
+			"Cutting Pattern",
+			filters={"parent": self.name, "parenttype": "Cutting Order"},
+			pluck="name"
+		)
+		# Delete associated Pattern Segments
+		for pat_name in pattern_names:
+			frappe.db.delete("Pattern Segment", {"parent": pat_name, "parenttype": "Cutting Pattern"})
+
 	def get_matrix_data(self):
 		"""
 		Returns data structure for Print Format Matrix
@@ -251,14 +263,23 @@ class CuttingOrder(Document):
 			# Reset start time
 			updates["last_start_time"] = None
 
-			# Update Qty
+			# Note: cut_qty is calculated from Production Log, then stored to Pattern for display
+			# Production Log entry is updated below with qty_cut
 			qty_to_add = cint(session_qty)
-			if qty_to_add > 0:
-				current_cut = cint(row.cut_qty)
-				updates["cut_qty"] = current_cut + qty_to_add
+			
+			# Calculate total cut_qty from Production Log (including this session)
+			total_cut_from_log = frappe.db.sql("""
+				SELECT COALESCE(SUM(qty_cut), 0) 
+				FROM `tabCutting Production Log`
+				WHERE cutting_order = %s AND pattern_idx = %s AND status = 'Done'
+			""", (self.name, row.idx))[0][0] or 0
+			
+			new_cut_qty = cint(total_cut_from_log) + qty_to_add
+			
+			# Store calculated cut_qty to Pattern field for display purposes
+			updates["cut_qty"] = new_cut_qty
 
-			# Check completion
-			new_cut_qty = cint(row.cut_qty) + qty_to_add
+			# Check completion based on calculated total
 			if new_cut_qty >= row.qty:
 				updates["status"] = "Completed"
 			else:
@@ -315,40 +336,73 @@ class CuttingOrder(Document):
 		new_doc.save(ignore_permissions=True)
 
 	def update_overall_progress(self):
-		# 1. Reset produced_qty
+		# 1. Reset produced_qty and build maps for expected/actual quantities
 		produced_map = defaultdict(int)
+		expected_map = defaultdict(int)  # Based on pattern.qty × segment.quantity
+		actual_cut_map = defaultdict(int)  # Based on cut_qty × segment.quantity
 
 		total_required_cuts = 0
 		total_made_cuts = 0
 		total_duration = 0
 
-		# 2. Iterate patterns and read from Pattern Segment child table
+		# 2. Iterate patterns and calculate quantities from Pattern Segments
 		for row in self.optimization_result:
 			total_duration += flt(row.total_duration)
-			if row.cut_qty > 0:
-				# Get segments from Pattern Segment child table
-				segments = frappe.db.get_all(
-					"Pattern Segment",
-					filters={"parent": row.name, "parenttype": "Cutting Pattern"},
-					fields=["length_mm", "quantity"]
-				)
+			
+			# Get segments from Pattern Segment child table
+			segments = frappe.db.get_all(
+				"Pattern Segment",
+				filters={"parent": row.name, "parenttype": "Cutting Pattern"},
+				fields=["length_mm", "quantity", "piece_code"]
+			)
+			
+			# Calculate expected_qty: pattern.qty × segment.quantity
+			# This represents what we WILL produce if we cut all planned patterns
+			for seg in segments:
+				length = flt(seg.length_mm)
+				count = cint(seg.quantity)
+				piece_code = seg.piece_code or ""
+				if length > 0 and count > 0:
+					# Key includes piece_code for per-segment tracking
+					key = (length, piece_code)
+					expected_map[key] += count * row.qty
+			
+			# Calculate cut_qty from Production Log (source of truth)
+			cut_qty = frappe.db.sql("""
+				SELECT COALESCE(SUM(qty_cut), 0) 
+				FROM `tabCutting Production Log`
+				WHERE cutting_order = %s AND pattern_idx = %s AND status = 'Done'
+			""", (self.name, row.idx))[0][0] or 0
+			
+			if cut_qty > 0:
 				for seg in segments:
 					length = flt(seg.length_mm)
 					count = cint(seg.quantity)
+					piece_code = seg.piece_code or ""
 					if length > 0 and count > 0:
-						produced_map[length] += count * row.cut_qty
+						key = (length, piece_code)
+						produced_map[key] += count * cut_qty
+						actual_cut_map[key] += count * cut_qty
 
-		# 3. Update Order Items (FIFO Distribution)
-		# We use a copy to track remaining available cuts as we distribute them
+		# 3. Update Order Items with expected_qty, actual_cut_qty, and produced_qty
+		# Use FIFO Distribution for produced_qty calculation
 		remaining_produced = produced_map.copy()
 
 		for item in self.items:
-			# Use flt for consistent key matching with pattern-parsed float lengths
-			key = flt(item.length_mm)
+			# Build key from item attributes
+			length_key = flt(item.length_mm)
+			piece_code = getattr(item, 'piece_code', '') or ''
+			key = (length_key, piece_code)
+			
+			# Set expected_qty from patterns
+			item.expected_qty = expected_map.get(key, 0)
+			
+			# Set actual_cut_qty from production logs
+			item.actual_cut_qty = actual_cut_map.get(key, 0)
+			
+			# Assign produced_qty (FIFO distribution)
 			available = remaining_produced.get(key, 0)
 			required = item.qty
-			
-			# Assign min(required, available) to this specific item row
 			allocated = min(required, available)
 			item.produced_qty = allocated
 			
@@ -358,14 +412,14 @@ class CuttingOrder(Document):
 			else:
 				item.progress_percent = 0
 			
-			# Decrement available count for next items of same length
+			# Decrement available count for next items of same key
 			if key in remaining_produced:
 				remaining_produced[key] = max(0, available - allocated)
 
 			total_required_cuts += item.qty
 			total_made_cuts += item.produced_qty
 
-		# 4. Calculate %
+		# 4. Calculate completion %
 		if total_required_cuts > 0:
 			self.completion_percent = (total_made_cuts / total_required_cuts) * 100.0
 		else:
@@ -388,12 +442,24 @@ def update_pattern_progress_wrapper(order_name, row_idx, action, session_qty=0, 
 
 @frappe.whitelist()
 def get_pattern_statuses_wrapper(order_name):
-	return frappe.db.get_all(
+	"""Get pattern statuses with cut_qty calculated from Production Log"""
+	patterns = frappe.db.get_all(
 		"Cutting Pattern",
 		filters={"parent": order_name, "parenttype": "Cutting Order"},
-		fields=["name", "idx", "status"],
+		fields=["name", "idx", "status", "qty"],
 		order_by="idx asc",
 	)
+	
+	# Calculate cut_qty from Production Log for each pattern
+	for pat in patterns:
+		cut_qty = frappe.db.sql("""
+			SELECT COALESCE(SUM(qty_cut), 0) 
+			FROM `tabCutting Production Log`
+			WHERE cutting_order = %s AND pattern_idx = %s AND status = 'Done'
+		""", (order_name, pat.idx))[0][0] or 0
+		pat['cut_qty'] = cint(cut_qty)
+	
+	return patterns
 
 
 @frappe.whitelist()
@@ -463,7 +529,7 @@ def get_pattern_segments(pattern_name):
 	
 	segments = frappe.db.sql("""
 		SELECT 
-			piece_name, segment_name, steel_profile, length_mm, 
+			piece_code, piece_name, segment_name, steel_profile, length_mm, 
 			quantity, punch_holes, rivet_holes, drill_holes, bending, note,
 			source_spec, source_item
 		FROM `tabPattern Segment`

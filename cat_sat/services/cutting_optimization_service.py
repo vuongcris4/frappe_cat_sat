@@ -56,11 +56,17 @@ SOLUTION_LIMIT = 100000
 
 
 def get_cache_path(stock_length, piece_lengths, blade_width, max_waste_pct, trim):
-    """Generate cache file path based on input parameters"""
+    """Generate cache file path based on input parameters
+    
+    CRITICAL: piece_lengths order must be preserved (NOT sorted) because
+    pattern solutions are arrays indexed by position. If we sort here but
+    use unsorted order when looking up, values will be misaligned.
+    """
     cache_folder = os.path.join(frappe.get_site_path(), "private", "cutting_patterns_cache")
     os.makedirs(cache_folder, exist_ok=True)
     
-    params_string = f"{stock_length}-{tuple(sorted(piece_lengths))}-{blade_width}-{max_waste_pct}-{trim}"
+    # MUST use tuple(piece_lengths) NOT sorted - order matters for pattern indexing
+    params_string = f"{stock_length}-{tuple(piece_lengths)}-{blade_width}-{max_waste_pct}-{trim}"
     input_hash = hashlib.sha256(params_string.encode('utf-8')).hexdigest()[:16]
     
     return os.path.join(cache_folder, f"patterns_{input_hash}.pkl")
@@ -198,6 +204,16 @@ def get_or_calculate_patterns(stock_length, piece_lengths, blade_width, max_wast
 @frappe.whitelist()
 def run_optimization(order_name: str):
     """Main entry point for cutting optimization"""
+    try:
+        return _run_optimization_impl(order_name)
+    except Exception as e:
+        import traceback
+        error_msg = f"Optimization Error: {str(e)}\n\n{traceback.format_exc()}"
+        frappe.log_error(error_msg, "Cutting Optimization Error")
+        raise
+
+def _run_optimization_impl(order_name: str):
+    """Internal implementation of optimization"""
     if not cp_model:
         frappe.throw("Thư viện 'ortools' chưa được cài đặt. Vui lòng cài đặt: 'pip install ortools'")
     
@@ -237,152 +253,145 @@ def run_optimization(order_name: str):
         frappe.throw("Chiều dài khả dụng không đủ (Chiều dài - Tề đầu <= 0)")
     
     # Build demand map and segment info (preserving ALL metadata for traceability)
-    item_map = defaultdict(int)
-    piece_names = {}  # length -> name
-    segment_info = {}  # length -> full metadata dict
+    # CRITICAL: Use (length, segment_name) as key to avoid incorrect aggregation
+    # Segments with same length but different machining MUST be separate
+    item_map = defaultdict(int)  # segment_key -> qty
+    segment_info = {}  # segment_key -> full metadata dict
+    piece_lengths = []  # ordered list of lengths (can have duplicates)
+    segment_keys = []   # ordered list of segment_keys for pattern mapping
     
     # Get source info from Cutting Specification if available
     source_spec_name = order.cutting_specification or ""
     source_item = ""
-    spec_details_by_length = {}  # Lookup by length only
     
     if source_spec_name:
         try:
             spec = frappe.get_doc("Cutting Specification", source_spec_name)
             source_item = frappe.db.get_value("Item", {"cutting_specification": source_spec_name}, "name") or ""
-            
-            # Cache for Item piece_name lookup
-            piece_name_cache = {}
-            
-            # Build a lookup from spec.details by length for full metadata
-            # Track unique piece info per length
-            piece_codes_by_length = defaultdict(set)  # Track unique bom_items per length
-            
-            for detail in spec.details:
-                length = flt(detail.length_mm)
-                bom_item = detail.bom_item or ""
-                
-                # Get piece_name from Item's custom field (with cache)
-                if bom_item and bom_item not in piece_name_cache:
-                    item_piece_name = frappe.db.get_value("Item", bom_item, "piece_name")
-                    # Just use the short name (e.g., "Khung tựa đôi")
-                    piece_name_cache[bom_item] = item_piece_name or bom_item
-                
-                # Collect bom_items for this length
-                if bom_item:
-                    piece_codes_by_length[length].add(piece_name_cache.get(bom_item, bom_item))
-                
-                # Store metadata by length - if multiple segments have same length, merge info
-                if length not in spec_details_by_length:
-                    spec_details_by_length[length] = {
-                        "piece_name": piece_name_cache.get(bom_item, bom_item) if bom_item else "",
-                        "piece_code": bom_item,
-                        "steel_profile": detail.steel_profile or "",
-                        "segment_name": detail.segment_name or f"{length}mm",
-                        "length_mm": length,
-                        "qty_segment_per_piece": cint(detail.qty_per_unit or 1),
-                        "punch_holes": cint(detail.punch_hole_qty or 0),
-                        "rivet_holes": cint(detail.rivet_hole_qty or 0),
-                        "drill_holes": cint(detail.drill_hole_qty or 0),
-                        "bending": detail.bend_type or "",
-                        "note": detail.note or "",
-                        "source_spec": source_spec_name,
-                        "source_item": source_item
-                    }
-            
-            # Update piece_name to include all pieces for this length
-            for length, names in piece_codes_by_length.items():
-                if length in spec_details_by_length:
-                    spec_details_by_length[length]["piece_name"] = ", ".join(sorted(names))
-                    
         except Exception as e:
             frappe.log_error(f"Error loading spec {source_spec_name}: {e}", "Cutting Optimization")
     
-    for item in order.items:
-        length = flt(item.length_mm)
-        # NEW: Track machine type per segment
-        machine_type = getattr(item, 'cut_by', '') or 'Laser'
-        item_map[length] += cint(item.qty)
-        
-        if length not in piece_names:
-            segment_name = item.segment_name or f"{length}mm"
-            piece_names[length] = segment_name
-            
-            # Get metadata from spec if available, otherwise from order.items
-            if length in spec_details_by_length:
-                segment_info[length] = spec_details_by_length[length].copy()
-            else:
-                # Fallback to data from order.items - use piece_name and piece_code from order
-                segment_info[length] = {
-                    "piece_code": getattr(item, 'piece_code', '') or '',
-                    "piece_name": getattr(item, 'piece_name', '') or '',
-                    "steel_profile": order.steel_profile or "",
-                    "segment_name": segment_name,
-                    "length_mm": length,
-                    "punch_holes": cint(getattr(item, 'punch_holes', 0)),
-                    "rivet_holes": cint(getattr(item, 'rivet_holes', 0)),
-                    "drill_holes": cint(getattr(item, 'drill_holes', 0)),
-                    "bending": getattr(item, 'bending', '') or '',
-                    "note": getattr(item, 'note', '') or '',
-                    "source_spec": source_spec_name,
-                    "source_item": source_item
-                }
-            # Store machine type for this length
-            segment_info[length]["cut_by"] = machine_type
-
-    
-    piece_lengths = sorted(item_map.keys(), reverse=True)
-    demands = [item_map[l] for l in piece_lengths]
-    
-    # Validate
-    for l in piece_lengths:
-        if l > effective_length:
-            frappe.throw(f"Chi tiết dài {l}mm lớn hơn chiều dài khả dụng ({effective_length}mm)")
-    
-    # NEW: Split segments by machine type (cut_by field)
-    laser_segments = {}  # length -> qty
-    mctd_segments = {}   # length -> qty
-    
+    # Process each item as a unique segment type
     for item in order.items:
         length = flt(item.length_mm)
         qty = cint(item.qty)
-        machine = getattr(item, 'cut_by', '') or 'Laser'
+        segment_name = item.segment_name or f"{length}mm"
+        machine_type = getattr(item, 'cut_by', '') or 'Laser'
+        piece_code = getattr(item, 'piece_code', '') or ''
         
-        if machine == 'MCTĐ':
-            mctd_segments[length] = mctd_segments.get(length, 0) + qty
-        else:
-            laser_segments[length] = laser_segments.get(length, 0) + qty
+        # Create unique segment key: (length, segment_name, piece_code)
+        # This ensures:
+        # 1. Segments with same length but different machining stay separate
+        # 2. Segments belonging to different pieces (PHOI) are tracked separately
+        # Each segment belongs to exactly one piece for accurate traceability
+        segment_key = (length, segment_name, piece_code)
+        
+        # Sum quantities for same segment_key (identical length + machining + piece)
+        item_map[segment_key] += qty
+        
+        if segment_key not in segment_info:
+            segment_info[segment_key] = {
+                "piece_code": piece_code,
+                "piece_name": getattr(item, 'piece_name', '') or '',
+                "steel_profile": order.steel_profile or "",
+                "segment_name": segment_name,
+                "length_mm": length,
+                "punch_holes": cint(getattr(item, 'punch_holes', 0)),
+                "rivet_holes": cint(getattr(item, 'rivet_holes', 0)),
+                "drill_holes": cint(getattr(item, 'drill_holes', 0)),
+                "bending": getattr(item, 'bending', '') or '',
+                "note": getattr(item, 'note', '') or '',
+                "source_spec": source_spec_name,
+                "source_item": source_item,
+                "cut_by": machine_type
+            }
+            # Add to ordered lists (first occurrence)
+            segment_keys.append(segment_key)
+            piece_lengths.append(length)
     
+    # Build demands in same order as segment_keys
+    demands = [item_map[sk] for sk in segment_keys]
+    
+    # For pattern name display
+    piece_names = {sk: segment_info[sk]["segment_name"] for sk in segment_keys}
+    
+    # Validate
+    for i, length in enumerate(piece_lengths):
+        if length > effective_length:
+            seg_name = segment_info[segment_keys[i]]["segment_name"]
+            frappe.throw(f"Chi tiết '{seg_name}' dài {length}mm lớn hơn chiều dài khả dụng ({effective_length}mm)")
+    
+    # Split segments by machine type (cut_by field)
+    laser_indices = []  # indices into segment_keys for laser cuts
+    mctd_indices = []   # indices for MCTĐ cuts
+    
+    for i, sk in enumerate(segment_keys):
+        machine = segment_info[sk].get("cut_by", "Laser")
+        if machine == 'MCTĐ':
+            mctd_indices.append(i)
+        else:
+            laser_indices.append(i)
+    
+    # Build laser-specific data
+    laser_lengths = [piece_lengths[i] for i in laser_indices]
+    laser_demands = [demands[i] for i in laser_indices]
+    laser_keys = [segment_keys[i] for i in laser_indices]
+    laser_piece_names = {segment_keys[i]: piece_names[segment_keys[i]] for i in laser_indices}
+    
+    # Build MCTĐ-specific data  
+    mctd_lengths = [piece_lengths[i] for i in mctd_indices]
+    mctd_demands = [demands[i] for i in mctd_indices]
+    mctd_keys = [segment_keys[i] for i in mctd_indices]
+    mctd_piece_names = {segment_keys[i]: piece_names[segment_keys[i]] for i in mctd_indices}    
     # Run separate optimizations
     sol = []
     
     # Laser optimization (blade_width = 1mm fixed for Laser)
-    if laser_segments:
-        laser_lengths = sorted(laser_segments.keys(), reverse=True)
-        laser_demands = [laser_segments[l] for l in laser_lengths]
+    if laser_lengths:
         laser_blade = 1.0  # Fixed for Laser
         
-        laser_sol = solve_laser_cutting_stock(
-            laser_lengths,
-            laser_demands,
-            piece_names,
-            stock_length,
-            laser_blade,
-            trim,
-            cint(order.max_over_production or 10)
-        )
-        # Mark patterns as Laser-cut
-        for pat in laser_sol:
-            pat['machine'] = 'Laser'
-        sol.extend(laser_sol)
+        # Get max_patterns from settings (default 20), 0 = no limit
+        laser_max_patterns = cint(settings.laser_max_patterns or 20)
+        if laser_max_patterns <= 0:
+            laser_max_patterns = 0  # No limit
+        
+        try:
+            laser_sol = solve_laser_cutting_stock(
+                laser_lengths,
+                laser_demands,
+                laser_keys,  # Pass segment_keys for pattern mapping
+                laser_piece_names,
+                stock_length,
+                laser_blade,
+                trim,
+                cint(order.max_over_production or 50),
+                laser_max_patterns
+            )
+            # Mark patterns as Laser-cut
+            for pat in laser_sol:
+                pat['machine'] = 'Laser'
+            sol.extend(laser_sol)
+        except ValueError as e:
+            error_msg = str(e)
+            if error_msg.startswith("no_solution:"):
+                # Return error info for UI to display
+                return {
+                    "error": True,
+                    "error_type": "no_solution",
+                    "message": error_msg.replace("no_solution:", ""),
+                    "current_params": {
+                        "max_over_production": cint(order.max_over_production or 50),
+                        "stock_length": stock_length,
+                        "trim_cut": trim
+                    }
+                }
+            raise
     
     # MCTĐ optimization (use mctd_blade_width from order)
-    if mctd_segments:
+    if mctd_lengths:
         if not order.steel_profile:
             frappe.throw("Vui lòng chọn Steel Profile khi có segment MCTĐ.")
         
-        mctd_lengths = sorted(mctd_segments.keys(), reverse=True)
-        mctd_demands = [mctd_segments[l] for l in mctd_lengths]
         mctd_blade = flt(order.mctd_blade_width or 2.5)  # From order settings
         
         bundle_factors_str = frappe.db.get_value("Steel Profile", order.steel_profile, "bundle_factors")
@@ -404,7 +413,8 @@ def run_optimization(order_name: str):
         mctd_sol = solve_bundled_cutting_stock(
             mctd_lengths,
             mctd_demands,
-            piece_names,
+            mctd_keys,  # Pass segment_keys for pattern mapping
+            mctd_piece_names,
             stock_length,
             mctd_blade,
             trim,
@@ -419,6 +429,15 @@ def run_optimization(order_name: str):
         sol.extend(mctd_sol)
     
     # Save results with segment details
+    # First, delete old Pattern Segments from database (child tables)
+    old_patterns = frappe.get_all(
+        "Cutting Pattern",
+        filters={"parent": order.name, "parenttype": "Cutting Order"},
+        pluck="name"
+    )
+    for pat_name in old_patterns:
+        frappe.db.delete("Pattern Segment", {"parent": pat_name, "parenttype": "Cutting Pattern"})
+    
     order.set("optimization_result", [])
     patterns_with_segments = []  # Store segments data for each pattern
     
@@ -427,9 +446,17 @@ def run_optimization(order_name: str):
         pattern_parts = []
         segments_data = []
         
-        for length, count in pat['pattern'].items():
-            # Get segment info for display
-            info = segment_info.get(length, {})
+        # pat['pattern'] keys are segment_keys: (length, segment_name, piece_code) tuples
+        for segment_key, count in pat['pattern'].items():
+            # segment_key is a tuple: (length, segment_name, piece_code)
+            length = segment_key[0] if isinstance(segment_key, tuple) else segment_key
+            
+            # Get segment info using the full segment_key
+            info = segment_info.get(segment_key, {})
+            if not info and not isinstance(segment_key, tuple):
+                # Fallback for old-style length-only keys
+                info = segment_info.get((segment_key, f"{segment_key}mm"), {})
+            
             segment_name = info.get("segment_name", "") or f"{length}mm"
             piece_name = info.get("piece_name", "")
             piece_code = info.get("piece_code", "") or info.get("source_item", "")
@@ -445,28 +472,22 @@ def run_optimization(order_name: str):
             if info.get("bending", "") and info.get("bending", "") != "Không":
                 machining_parts.append(info["bending"])
             
-            # Format: "3x Tên đoạn 497mm [Mảnh: Tên mảnh]" 
-            # Example: "3x H10-20 (uốn) 497mm [Khung tựa]"
-            length_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
+            # Format: "3x I5.1.2-497" (ngắn gọn - phương án C)
+            length_str = f"{int(length)}" if length == int(length) else f"{length:.0f}"
             
-            # Build segment display name
-            display_name = segment_name
-            if machining_parts:
-                machining_str = ", ".join(machining_parts)
-                display_name = f"{segment_name} ({machining_str})"
+            # Use piece_code short form (e.g., I5.1.2 from PHOI-I5.1.2)
+            short_code = piece_code.replace("PHOI-", "") if piece_code else ""
             
-            # Build piece info bracket
-            if piece_name:
-                piece_info = f" [{piece_name}]"
+            if short_code:
+                pattern_parts.append(f"{count}x {short_code}-{length_str}")
             else:
-                piece_info = ""
-            
-            pattern_parts.append(f"{count}x {display_name} {length_str}mm{piece_info}")
+                # Fallback: use segment_name
+                pattern_parts.append(f"{count}x {segment_name}-{length_str}")
             
             # Build segment child data with FULL traceability
             segments_data.append({
-                "piece_code": info.get("piece_code", ""),
-                "piece_name": info.get("piece_name", ""),
+                "piece_code": piece_code,  # Use calculated value (has fallback)
+                "piece_name": piece_name,  # Use calculated value
                 "segment_name": info.get("segment_name", f"{length}mm"),
                 "steel_profile": info.get("steel_profile", ""),
                 "length_mm": length,
@@ -492,42 +513,24 @@ def run_optimization(order_name: str):
         actual_waste = max(raw_waste, trim)
         
         # Build segments summary for grid display
-        # Format: "3x Tên đoạn (machining) 497mm [Tên mảnh]"
+        # Format: "3x I5.1.2-497" (ngắn gọn - phương án C)
         segments_summary_parts = []
         for seg in segments_data:
             segment_name = seg.get("segment_name", "") or f"{seg.get('length_mm', 0)}mm"
-            piece_name = seg.get("piece_name", "")
+            piece_code = seg.get("piece_code", "")
             length = seg.get("length_mm", 0)
             qty = seg.get("quantity", 0)
             
             if qty > 0:
-                # Build machining details list
-                machining_parts = []
-                if seg.get("punch_holes", 0) > 0:
-                    machining_parts.append(f"{seg['punch_holes']} dập")
-                if seg.get("rivet_holes", 0) > 0:
-                    machining_parts.append(f"{seg['rivet_holes']} tán")
-                if seg.get("drill_holes", 0) > 0:
-                    machining_parts.append(f"{seg['drill_holes']} khoan")
-                if seg.get("bending", "") and seg.get("bending", "") != "Không":
-                    machining_parts.append(seg["bending"])
+                length_str = f"{int(length)}" if length == int(length) else f"{length:.0f}"
                 
-                # Format: "3x Tên đoạn (machining) 497mm [Tên mảnh]"
-                length_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
+                # Use piece_code short form (e.g., I5.1.2 from PHOI-I5.1.2)
+                short_code = piece_code.replace("PHOI-", "") if piece_code else ""
                 
-                # Build segment display name
-                display_name = segment_name
-                if machining_parts:
-                    machining_str = ", ".join(machining_parts)
-                    display_name = f"{segment_name} ({machining_str})"
-                
-                # Build piece info bracket
-                if piece_name:
-                    piece_info = f" [{piece_name}]"
+                if short_code:
+                    summary_part = f"{qty}x {short_code}-{length_str}"
                 else:
-                    piece_info = ""
-                
-                summary_part = f"{qty}x {display_name} {length_str}mm{piece_info}"
+                    summary_part = f"{qty}x {segment_name}-{length_str}"
                     
                 segments_summary_parts.append(summary_part)
         segments_summary = ", ".join(segments_summary_parts)
@@ -574,17 +577,29 @@ def run_optimization(order_name: str):
     
     # Generate HTML result display
     result_html = generate_result_html(
-        sol, piece_lengths, piece_names, demands, stock_length, order.enable_bundling
+        sol, segment_keys, piece_names, demands, stock_length, order.enable_bundling
     )
     order.result_html = result_html
     order.save(ignore_permissions=True)
     
-    return sol
+    # Return JSON-serializable result (sol contains tuple keys which can't be serialized)
+    return {
+        "success": True,
+        "patterns_count": len(sol),
+        "total_bars": sum(p.get("qty", 0) for p in sol),
+        "message": f"Tối ưu thành công: {len(sol)} patterns, {sum(p.get('qty', 0) for p in sol)} cây sắt"
+    }
 
 
-def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_length, is_bundling=False):
+def generate_result_html(patterns, segment_keys, piece_names, demands, stock_length, is_bundling=False):
     """
     Generate HTML display for optimization results
+    
+    Args:
+        patterns: List of pattern dicts with 'pattern' (segment_key -> count), 'qty', 'waste'
+        segment_keys: List of (length, segment_name) tuples
+        piece_names: Dict mapping segment_key -> display name
+        demands: List of quantities needed (same order as segment_keys)
     
     For MCTD (bundling mode): Django app style with waste rows and bundle factor columns
     For Laser: Simple pattern table
@@ -601,11 +616,12 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
     html_parts.append(f"<p><b>Thời gian:</b> {now.strftime('%d/%m/%Y %H:%M:%S')}</p>")
     html_parts.append(f"<p><b>Chiều dài cây sắt:</b> {stock_length}mm</p>")
     
-    # Calculate production totals
-    production = {l: 0 for l in piece_lengths}
+    # Calculate production totals - use segment_keys as dict keys
+    production = {sk: 0 for sk in segment_keys}
     for pat in patterns:
-        for l, c in pat['pattern'].items():
-            production[l] += c * pat['qty']
+        for sk, c in pat['pattern'].items():
+            if sk in production:
+                production[sk] += c * pat['qty']
     
     # Summary table
     title = "TỔNG KẾT CẮT TỰ ĐỘNG" if is_bundling else "TỔNG KẾT CẮT LASER"
@@ -614,12 +630,13 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
     html_parts.append('<thead><tr><th>Tên sắt</th><th>Đoạn (mm)</th><th>SL cần (đoạn)</th><th>SL cắt (đoạn)</th><th>Tồn kho (đoạn)</th></tr></thead>')
     html_parts.append('<tbody>')
     
-    for i, l in enumerate(piece_lengths):
-        name = piece_names.get(l, f"{l}mm")
+    for i, sk in enumerate(segment_keys):
+        length = sk[0] if isinstance(sk, tuple) else sk
+        name = piece_names.get(sk, f"{length}mm")
         demand = demands[i]
-        produced = production.get(l, 0)
+        produced = production.get(sk, 0)
         surplus = produced - demand
-        l_str = f"{int(l)}" if l == int(l) else f"{l:.1f}"
+        l_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
         html_parts.append(f'<tr><td>{name}</td><td>{l_str}</td><td>{demand}</td><td>{produced}</td><td>{surplus}</td></tr>')
     
     html_parts.append('</tbody></table>')
@@ -648,16 +665,15 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
     html_parts.append(f"<h4>KẾ HOẠCH CẮT CHI TIẾT ({len(patterns)} loại)</h4>")
     
     if is_bundling:
-        # MCTD format: rows by waste, columns by lengths + bundle factors
-        # Get unique bundle factors
+        # MCTD format: rows by waste, columns by segment_keys + bundle factors
         factors = sorted(set(pat.get('factor', 1) for pat in patterns), reverse=True)
         
-        # Build header: STT | Hao hụt | lengths... | factor columns... | Tổng cây
         html_parts.append('<table class="table table-bordered table-sm" style="text-align:center; font-size:0.9em">')
         html_parts.append('<thead><tr><th>STT</th><th>Hao hụt (mm)</th>')
         
-        for l in piece_lengths:
-            l_str = f"{int(l)}" if l == int(l) else f"{l:.1f}"
+        for sk in segment_keys:
+            length = sk[0] if isinstance(sk, tuple) else sk
+            l_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
             html_parts.append(f'<th>{l_str}</th>')
         
         for f in factors:
@@ -674,15 +690,13 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
             
             html_parts.append(f'<tr><td>{idx}</td><td>{waste_str}</td>')
             
-            # Segment counts
-            for l in piece_lengths:
-                count = pat['pattern'].get(l, 0)
+            for sk in segment_keys:
+                count = pat['pattern'].get(sk, 0)
                 if count > 0:
                     html_parts.append(f'<td style="font-weight:bold">{count}</td>')
                 else:
                     html_parts.append('<td></td>')
             
-            # Bundle factor columns - put qty in the right factor column
             for f in factors:
                 if factor == f and qty > 0:
                     html_parts.append(f'<td style="font-weight:bold">{qty}</td>')
@@ -698,9 +712,10 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
         html_parts.append('<table class="table table-bordered table-sm" style="text-align:center; font-size:0.9em">')
         html_parts.append('<thead><tr><th>STT</th>')
         
-        for l in piece_lengths:
-            name = piece_names.get(l, "")
-            l_str = f"{int(l)}" if l == int(l) else f"{l:.1f}"
+        for sk in segment_keys:
+            length = sk[0] if isinstance(sk, tuple) else sk
+            name = piece_names.get(sk, "")
+            l_str = f"{int(length)}" if length == int(length) else f"{length:.1f}"
             html_parts.append(f'<th style="min-width:60px">{name}<br>({l_str}mm)</th>')
         
         html_parts.append('<th>Hao hụt (mm)</th><th>SL cây sắt</th></tr></thead>')
@@ -709,8 +724,8 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
         for idx, pat in enumerate(patterns, 1):
             html_parts.append(f'<tr><td>{idx}</td>')
             
-            for l in piece_lengths:
-                count = pat['pattern'].get(l, 0)
+            for sk in segment_keys:
+                count = pat['pattern'].get(sk, 0)
                 if count > 0:
                     html_parts.append(f'<td style="font-weight:bold">{count}</td>')
                 else:
@@ -727,14 +742,23 @@ def generate_result_html(patterns, piece_lengths, piece_names, demands, stock_le
     return '\n'.join(html_parts)
 
 
-def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length, blade_width, trim, max_surplus):
+def solve_laser_cutting_stock(piece_lengths, demands, segment_keys, piece_names, stock_length, blade_width, trim, max_surplus, max_patterns=0):
     """
     Laser cutting optimization with multi-objective:
     1. Minimize total waste
     2. Minimize total surplus
+    3. Minimize number of unique patterns (constrained by max_patterns)
+    
+    Args:
+        piece_lengths: List of segment lengths (can have duplicates for same-length different-machining)
+        demands: List of quantities needed for each segment
+        segment_keys: List of (length, segment_name) tuples for pattern mapping
+        piece_names: Dict mapping segment_key -> display name
+        max_patterns: Maximum number of unique patterns allowed (0 = no limit)
     
     Returns:
         List of pattern dicts with 'pattern', 'qty', 'waste', 'used_length'
+        where pattern dict keys are segment_keys (length, segment_name)
     """
     # Phase 1: Get patterns
     patterns = get_or_calculate_patterns(stock_length, piece_lengths, blade_width, 0.015, trim)
@@ -745,51 +769,62 @@ def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length,
     num_patterns = len(patterns)
     num_pieces = len(piece_lengths)
     
-    # Phase 2: Optimize distribution
-    model = cp_model.CpModel()
+    # Phase 2: Optimize distribution with auto-retry
+    # Cap upper bound to avoid INT32 overflow (max 2^31 - 1)
+    MAX_INT32 = 2147483647
+    total_demand = sum(demands)
+    x_upper_bound = min(total_demand * 2, MAX_INT32)
     
-    # Variables: number of times to use each pattern
-    x = [model.NewIntVar(0, sum(demands) * 2, f'x_{j}') for j in range(num_patterns)]
-    
-    # Production for each piece type
     production = []
     surplus_vars = []
     
-    # Calculate max pieces per pattern (for adaptive surplus)
-    max_pieces_per_pattern = max(sum(sol) for _, sol in patterns) if patterns else 1
+    # Auto-retry with increasing max_surplus if no solution found
+    original_max_surplus = max_surplus
+    retry_count = 0
+    max_retries = 5
     
-    for i in range(num_pieces):
-        # Production = sum(pattern_count[i] * x[j]) for all patterns j
-        prod = sum(patterns[j][1][i] * x[j] for j in range(num_patterns))
-        production.append(prod)
+    while retry_count <= max_retries:
+        model = cp_model.CpModel()
+        x = [model.NewIntVar(0, x_upper_bound, f'x_{j}') for j in range(num_patterns)]
+        production = []
+        surplus_vars = []
         
-        # Surplus variable - adaptive limit based on pattern capacity
-        # For high-density patterns (many pieces per bar), allow more surplus
-        # since one bar can produce way more than demand
-        adaptive_surplus = max(max_surplus, max_pieces_per_pattern * 2)
+        for i in range(num_pieces):
+            # Production = sum(pattern_count[i] * x[j]) for all patterns j
+            prod = sum(patterns[j][1][i] * x[j] for j in range(num_patterns))
+            production.append(prod)
+            
+            # Surplus variable - limited to current max_surplus
+            s = model.NewIntVar(0, max_surplus, f'surplus_{i}')
+            model.Add(s == prod - demands[i])
+            model.Add(prod >= demands[i])  # Must meet demand
+            model.Add(s <= max_surplus)  # Limit per segment
+            surplus_vars.append(s)
         
-        s = model.NewIntVar(0, sum(demands), f'surplus_{i}')
-        model.Add(s == prod - demands[i])
-        model.Add(prod >= demands[i])  # Must meet demand
-        model.Add(s <= adaptive_surplus)  # Adaptive surplus limit
-        surplus_vars.append(s)
-    
-    # Calculate waste for each pattern (in mm, scaled)
-    waste_per_pattern = []
-    for obj_value, sol in patterns:
-        waste = stock_length - obj_value
-        waste_per_pattern.append(int(waste * SCALING_FACTOR))
-    
-    # Objective 1: Minimize total waste
-    total_waste = sum(waste_per_pattern[j] * x[j] for j in range(num_patterns))
-    model.Minimize(total_waste)
-    
-    solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 60
-    status = solver.Solve(model)
-    
-    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        frappe.throw("Không tìm được phương án cắt. Thử tăng tồn kho cho phép.")
+        # Calculate waste for each pattern (in mm, scaled)
+        waste_per_pattern = []
+        for obj_value, sol in patterns:
+            waste = stock_length - obj_value
+            waste_per_pattern.append(int(waste * SCALING_FACTOR))
+        
+        # Objective 1: Minimize total waste
+        total_waste = sum(waste_per_pattern[j] * x[j] for j in range(num_patterns))
+        model.Minimize(total_waste)
+        
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = 60
+        status = solver.Solve(model)
+        
+        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            break  # Found solution
+        
+        # No solution - increase max_surplus and retry
+        retry_count += 1
+        if retry_count <= max_retries:
+            max_surplus = max_surplus * 2  # Double the limit
+            frappe.logger().info(f"No solution with max_surplus={max_surplus//2}, retrying with {max_surplus}")
+        else:
+            raise ValueError(f"no_solution:Không tìm được phương án cắt sau {max_retries} lần thử (max_surplus cuối={max_surplus}). Kiểm tra lại dữ liệu đầu vào.")
     
     min_waste = int(solver.ObjectiveValue())
     
@@ -798,18 +833,33 @@ def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length,
     total_surplus = sum(surplus_vars)
     model.Minimize(total_surplus)
     
+    # Add max_patterns constraint as simple upper bound (not a separate optimization phase)
+    if max_patterns > 0:
+        # Binary indicator: is pattern j used?
+        pattern_used = [model.NewBoolVar(f'used_{j}') for j in range(num_patterns)]
+        for j in range(num_patterns):
+            model.Add(x[j] >= 1).OnlyEnforceIf(pattern_used[j])
+            model.Add(x[j] == 0).OnlyEnforceIf(pattern_used[j].Not())
+        total_patterns_used = sum(pattern_used)
+        model.Add(total_patterns_used <= max_patterns)
+    
     status = solver.Solve(model)
     
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        frappe.throw("Không tìm được phương án tối ưu tồn kho.")
+        if max_patterns > 0:
+            frappe.throw(f"Không tìm được phương án với max_patterns={max_patterns}. Thử tăng giới hạn pattern hoặc đặt = 0.")
+        else:
+            frappe.throw("Không tìm được phương án tối ưu tồn kho.")
     
-    # Extract solution
+    # Extract solution - use segment_keys as dict keys for correct mapping
     result_patterns = []
     for j in range(num_patterns):
         qty = solver.Value(x[j])
         if qty > 0:
             obj_value, sol = patterns[j]
-            pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
+            # CRITICAL: Use segment_keys as dict keys, not just lengths
+            # This ensures correct mapping for same-length different-machining segments
+            pattern_dict = {segment_keys[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
             
             # obj_value includes trim, so subtract trim to get pure cuts+kerf
             # used_length = cuts + kerf only (not including trim)
@@ -825,13 +875,19 @@ def solve_laser_cutting_stock(piece_lengths, demands, piece_names, stock_length,
     return result_patterns
 
 
-def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_length, blade_width, trim, 
+def solve_bundled_cutting_stock(piece_lengths, demands, segment_keys, piece_names, stock_length, blade_width, trim, 
                                  factors, manual_cut_limit, max_over, max_segments_per_pattern=5):
     """
     MCTĐ (Bundle cutting) optimization
     
     Phase 1: Generate patterns (max N different sizes from settings)
     Phase 2: Optimize bundle distribution with factors
+    
+    Args:
+        piece_lengths: List of segment lengths
+        demands: List of quantities needed
+        segment_keys: List of (length, segment_name) tuples for pattern mapping
+        piece_names: Dict mapping segment_key -> display name
     """
     # Phase 1: Get patterns
     patterns = get_or_calculate_patterns(stock_length, piece_lengths, blade_width, 0.015, trim)
@@ -855,6 +911,10 @@ def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_lengt
     # Phase 2: Bundle optimization
     model = cp_model.CpModel()
     
+    # Cap upper bound to avoid INT32 overflow
+    MAX_INT32 = 2147483647
+    total_demand = sum(demands)
+    
     # Filter out factor 0
     pos_factors = [f for f in factors if f > 0]
     
@@ -862,8 +922,8 @@ def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_lengt
     b = {}
     for j in range(num_patterns):
         for f in pos_factors:
-            # Upper bound estimation
-            max_bundles = max(1, sum(demands) // f + 1)
+            # Upper bound estimation with INT32 cap
+            max_bundles = min(max(1, total_demand // f + 1), MAX_INT32)
             b[(j, f)] = model.NewIntVar(0, max_bundles, f'b_{j}_{f}')
     
     # Production for each piece type
@@ -888,7 +948,8 @@ def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_lengt
     for i in range(num_pieces):
         if isinstance(production[i], int):
             if production[i] < demands[i]:
-                frappe.throw(f"Không thể đáp ứng nhu cầu cho đoạn {piece_lengths[i]}mm")
+                seg_name = piece_names.get(segment_keys[i], f"{piece_lengths[i]}mm")
+                frappe.throw(f"Không thể đáp ứng nhu cầu cho đoạn {seg_name}")
         else:
             model.Add(production[i] >= demands[i])
             # Relax constraint: allow more over-production with large bundle factors
@@ -933,14 +994,15 @@ def solve_bundled_cutting_stock(piece_lengths, demands, piece_names, stock_lengt
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         frappe.throw("Không tìm được phương án. Thử tăng cắt tay hoặc tồn kho cho phép.")
     
-    # Extract solution
+    # Extract solution - use segment_keys as dict keys
     result_patterns = []
     for j in range(num_patterns):
         for f in pos_factors:
             num_bundles = solver.Value(b[(j, f)])
             if num_bundles > 0:
                 obj_value, sol = patterns[j]
-                pattern_dict = {piece_lengths[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
+                # CRITICAL: Use segment_keys as dict keys for correct mapping
+                pattern_dict = {segment_keys[i]: sol[i] for i in range(num_pieces) if sol[i] > 0}
                 
                 # obj_value includes trim, subtract it for pure cuts+kerf
                 used_length = obj_value - trim

@@ -12,6 +12,7 @@
         "mctd_max_segments_per_pattern",
         "section_laser",
         "laser_trim_cut",
+        "laser_max_patterns",
         "section_machine",
         "default_cutting_machine"
     ],
@@ -58,6 +59,13 @@
             "fieldtype": "Float",
             "label": "Tề đầu Laser (mm)",
             "description": "Chiều dài tề đầu sắt cho máy laser. Trừ vào mỗi pattern trước khi tính."
+        },
+        {
+            "default": "20",
+            "fieldname": "laser_max_patterns",
+            "fieldtype": "Int",
+            "label": "Số pattern tối đa Laser",
+            "description": "Giới hạn số loại pattern khác nhau khi tối ưu Laser. Đặt 0 để không giới hạn."
         },
         {
             "fieldname": "section_machine",

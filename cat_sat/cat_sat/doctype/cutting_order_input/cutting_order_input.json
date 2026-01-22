@@ -11,6 +11,8 @@
         "length_mm",
         "qty",
         "cut_by",
+        "expected_qty",
+        "actual_cut_qty",
         "produced_qty",
         "progress_percent",
         "priority",
@@ -66,11 +68,28 @@
             "description": "Chọn máy cắt cho đoạn này"
         },
         {
-            "fieldname": "produced_qty",
+            "fieldname": "expected_qty",
             "fieldtype": "Int",
             "in_list_view": 1,
+            "label": "SL Dự kiến",
+            "read_only": 1,
+            "description": "Số lượng dự kiến nếu cắt đủ tất cả patterns theo kế hoạch"
+        },
+        {
+            "fieldname": "actual_cut_qty",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "SL Đã cắt",
+            "read_only": 1,
+            "description": "Số lượng đã cắt thực tế từ production logs"
+        },
+        {
+            "fieldname": "produced_qty",
+            "fieldtype": "Int",
+            "in_list_view": 0,
             "label": "Đã có",
-            "read_only": 1
+            "read_only": 1,
+            "hidden": 1
         },
         {
             "fieldname": "progress_percent",

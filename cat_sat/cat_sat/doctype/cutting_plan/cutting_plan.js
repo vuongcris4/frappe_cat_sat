@@ -218,6 +218,8 @@ function render_progress_dashboard(frm) {
 					<h5 style="margin-top:15px;">Chi tiết đoạn sắt</h5>
 					<table class="table table-sm table-bordered">
 						<thead><tr>
+							<th>Mã mảnh</th>
+							<th>Tên mảnh</th>
 							<th>Loại sắt</th>
 							<th>Tên đoạn</th>
 							<th>Dài (mm)</th>
@@ -230,6 +232,8 @@ function render_progress_dashboard(frm) {
 				for (const seg of data.segments) {
 					const color = seg.percent >= 100 ? '#d4edda' : (seg.percent < 50 ? '#f8d7da' : '');
 					html += `<tr style="background:${color};">
+						<td><code>${seg.piece_code || '-'}</code></td>
+						<td>${seg.piece_name || '-'}</td>
 						<td>${seg.steel_profile || ''}</td>
 						<td>${seg.segment_name}</td>
 						<td>${seg.length_mm}</td>

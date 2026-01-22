@@ -318,21 +318,7 @@ frappe.ui.form.on("Cutting Order", {
         // Add Run Optimization button
         if (!frm.is_new() && frm.doc.status !== "Completed" && frm.doc.docstatus === 0) {
             frm.add_custom_button(__("Run Optimization"), () => {
-                // Auto-save first, then run optimization
-                frm.save().then(() => {
-                    frappe.call({
-                        method: "cat_sat.services.cutting_optimization_service.run_optimization",
-                        args: { order_name: frm.doc.name },
-                        freeze: true,
-                        freeze_message: __("Running optimization algorithm..."),
-                        callback(r) {
-                            if (!r.exc) {
-                                frm.reload_doc();
-                                frappe.msgprint(__("Optimization completed successfully!"));
-                            }
-                        }
-                    });
-                });
+                run_optimization_with_retry(frm);
             }).addClass("btn-primary");
         }
 
@@ -457,4 +443,109 @@ function register_action_formatter() {
                     </button>
                 </div>`;
     };
+}
+
+// Run optimization with error handling and retry dialog
+function run_optimization_with_retry(frm, custom_params = {}) {
+    // Helper function to actually run optimization
+    function execute_optimization() {
+        frappe.call({
+            method: "cat_sat.services.cutting_optimization_service.run_optimization",
+            args: { order_name: frm.doc.name },
+            freeze: true,
+            freeze_message: __("Đang chạy thuật toán tối ưu..."),
+            callback(r) {
+                if (r.exc) return;
+
+                // Check if returned error info
+                if (r.message && r.message.error) {
+                    show_optimization_error_dialog(frm, r.message);
+                } else {
+                    frm.reload_doc();
+                    // Use message from server if available
+                    let success_msg = (r.message && r.message.message) || __("Tối ưu hoàn tất!");
+                    frappe.show_alert({
+                        message: success_msg,
+                        indicator: "green"
+                    });
+                }
+            }
+        });
+    }
+
+    // Reset status to Draft before save to ensure there's a change
+    // This resolves "No changes in document" popup when re-running optimization
+    if (frm.doc.status === "Optimized") {
+        frm.set_value("status", "Draft");
+    }
+
+    // Force document to be dirty to ensure save works
+    frm.dirty();
+
+    // Always save before running optimization
+    frm.save().then(() => {
+        execute_optimization();
+    });
+}
+
+// Show dialog when optimization fails
+function show_optimization_error_dialog(frm, error_info) {
+    const params = error_info.current_params || {};
+
+    const d = new frappe.ui.Dialog({
+        title: __("⚠️ Không tìm được phương án cắt"),
+        fields: [
+            {
+                fieldtype: "HTML",
+                options: `<div class="alert alert-warning" style="margin-bottom: 15px;">
+                    <strong>${error_info.message || "Không tìm được phương án cắt"}</strong>
+                    <p class="text-muted" style="margin-top: 8px;">Hãy thử điều chỉnh các tham số bên dưới rồi chạy lại.</p>
+                </div>`
+            },
+            {
+                fieldname: "max_over_production",
+                fieldtype: "Int",
+                label: __("Dư cho phép (đoạn)"),
+                default: params.max_over_production || 50,
+                description: "Số đoạn tối đa được cắt dư. Tăng lên nếu không tìm được phương án."
+            },
+            {
+                fieldname: "stock_length",
+                fieldtype: "Int",
+                label: __("Chiều dài cây sắt (mm)"),
+                default: params.stock_length || 6000,
+                read_only: 1
+            },
+            {
+                fieldname: "trim_cut",
+                fieldtype: "Int",
+                label: __("Tề đầu (mm)"),
+                default: params.trim_cut || 10
+            }
+        ],
+        primary_action_label: __("Chạy lại"),
+        primary_action(values) {
+            d.hide();
+
+            // Update order with new params
+            frappe.call({
+                method: "frappe.client.set_value",
+                args: {
+                    doctype: "Cutting Order",
+                    name: frm.doc.name,
+                    fieldname: {
+                        max_over_production: values.max_over_production,
+                        trim_cut: values.trim_cut
+                    }
+                },
+                callback() {
+                    // Retry optimization
+                    run_optimization_with_retry(frm);
+                }
+            });
+        },
+        secondary_action_label: __("Hủy")
+    });
+
+    d.show();
 }

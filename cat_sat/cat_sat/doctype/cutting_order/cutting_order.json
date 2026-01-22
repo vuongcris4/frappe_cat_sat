@@ -20,6 +20,7 @@
         "bundle_factors",
         "manual_cut_limit",
         "max_over_production",
+        "max_patterns",
         "section_break_items",
         "items",
         "section_break_results",
@@ -143,12 +144,18 @@
             "depends_on": "eval:doc.enable_bundling"
         },
         {
-            "default": "5",
+            "default": "50",
             "fieldname": "max_over_production",
             "fieldtype": "Int",
             "label": "Dư cho phép (đoạn)",
-            "description": "Số đoạn tối đa được cắt dư so với nhu cầu",
-            "depends_on": "eval:doc.enable_bundling"
+            "description": "Số đoạn tối đa được cắt dư so với nhu cầu để tối ưu hao hụt"
+        },
+        {
+            "default": "10",
+            "fieldname": "max_patterns",
+            "fieldtype": "Int",
+            "label": "Giới hạn pattern",
+            "description": "Số loại pattern tối đa được tạo ra. Để trống = không giới hạn"
         },
         {
             "fieldname": "section_break_items",
